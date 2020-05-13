@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import dvrk
 import PyKDL
 import tf
-import tf_conversions
+from tf_conversions import posemath
 
 rospy.init_node('notebook')
 
@@ -64,12 +64,14 @@ def right_camera_info_callback(camera_info_msg):
 jr.subscribe('/stereo/left/image_raw', msg.Image, left_image_callback)
 jr.subscribe('/stereo/left/camera_info', msg.CameraInfo, left_camera_info_callback)
 jr.subscribe('/stereo/right/image_raw', msg.Image, right_image_callback)
+
 jr.subscribe('/stereo/right/camera_info', msg.CameraInfo, right_camera_info_callback)
 # -
 
 left_image = cv2.flip(left_image, 0)
 plt.imshow(left_image)
 
+right_image = cv2.flip(right_image, 0)
 plt.imshow(right_image)
 
 print("LEFT CAM")
@@ -127,11 +129,12 @@ def rectify(cam, ros_pt):
 def invert_rectify(cam, ros_pt, frame_dims):
     return tuple(cam.rectifyPoint((frame_dims[0] - ros_pt.x, frame_dims[1] - ros_pt.y)))
 
-left_feat_pts = [invert_rectify(left_cam, pt, left_frame.shape) for pt in left_feats.points]
+left_feat_pts = [rectify(left_cam, pt) for pt in left_feats.points]
 right_feat_pts = [rectify(right_cam, pt) for pt in right_feats.points]
 print(left_feat_pts)
 print(right_feat_pts)
 left_frame = cv2.flip(deepcopy(left_frame), 0)
+left_frame = cv2.flip(deepcopy(left_frame), 1)
 left_cam.rectifyImage(left_frame, left_frame_rectified)
 plt.imshow(left_frame_rectified)
 # -
@@ -142,7 +145,26 @@ plt.imshow(right_frame_rectified)
 
 stereocam = image_geometry.StereoCameraModel()
 stereocam.fromCameraInfo(left_camera_info, right_camera_info)
-disparity = abs(left_feat_pts[1][0] - right_feat_pts[1][0])
-stereocam.projectPixelTo3d(left_feat_pts[1], disparity)
+disparity = abs(left_feat_pts[0][0] - right_feat_pts[0][0])
+print(disparity)
+ball_pos_cam = stereocam.projectPixelTo3d(left_feat_pts[0], disparity)
+print(ball_pos_cam)
+
+ball_pos_cam = PyKDL.Vector(*ball_pos_cam)
+# throw all this into a utility function to turn the tf_listener transform into 
+pos, rot_quat = tf_listener.lookupTransform('ECM', 'camera', rospy.Time())
+rot = PyKDL.Rotation.Quaternion(*rot_quat)
+trans = PyKDL.Vector(*pos)
+tf_cam_ecm = PyKDL.Frame(rot, trans)
+pos_ball_ecm = tf_cam_ecm * ball_pos_cam
+pos_ball_ecm
+
+pos, rot_quat = tf_listener.lookupTransform('PSM1_psm_base_link', 'ecm_insertion_link', rospy.Time())
+tf_ecm_psm1 = PyKDL.Frame(PyKDL.Rotation.Quaternion(*rot_quat), PyKDL.Vector(*pos))
+pos_ball_psm1 = tf_ecm_psm1 * pos_ball_ecm
+pos_ball_psm1
+
+# aight its finally time to try and grab the ball 
+psm1.move(pos_ball_psm1)
 
 
