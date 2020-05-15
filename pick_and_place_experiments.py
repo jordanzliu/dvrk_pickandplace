@@ -61,10 +61,9 @@ def right_camera_info_callback(camera_info_msg):
     global right_camera_info
     right_camera_info = camera_info_msg
     
-jr.subscribe('/stereo/left/image_raw', msg.Image, left_image_callback)
+jr.subscribe('/stereo/left/image_flipped', msg.Image, left_image_callback)
 jr.subscribe('/stereo/left/camera_info', msg.CameraInfo, left_camera_info_callback)
-jr.subscribe('/stereo/right/image_raw', msg.Image, right_image_callback)
-
+jr.subscribe('/stereo/right/image_flipped', msg.Image, right_image_callback)
 jr.subscribe('/stereo/right/camera_info', msg.CameraInfo, right_camera_info_callback)
 # -
 
@@ -133,10 +132,8 @@ left_feat_pts = [rectify(left_cam, pt) for pt in left_feats.points]
 right_feat_pts = [rectify(right_cam, pt) for pt in right_feats.points]
 print(left_feat_pts)
 print(right_feat_pts)
-left_frame = cv2.flip(deepcopy(left_frame), 0)
-left_frame = cv2.flip(deepcopy(left_frame), 1)
 left_cam.rectifyImage(left_frame, left_frame_rectified)
-plt.imshow(left_frame_rectified)
+plt.imshow(left_frame)
 # -
 
 right_frame_rectified = deepcopy(right_frame)
@@ -150,21 +147,60 @@ print(disparity)
 ball_pos_cam = stereocam.projectPixelTo3d(left_feat_pts[0], disparity)
 print(ball_pos_cam)
 
+
+def tfl_to_pykdl_frame(tfl_frame):
+    pos, rot_quat = tfl_frame
+    pos2 = PyKDL.Vector(*pos)
+    rot = PyKDL.Rotation.Quaternion(*rot_quat)
+    return PyKDL.Frame(rot, pos2)
+
+
 ball_pos_cam = PyKDL.Vector(*ball_pos_cam)
-# throw all this into a utility function to turn the tf_listener transform into 
-pos, rot_quat = tf_listener.lookupTransform('ECM', 'camera', rospy.Time())
-rot = PyKDL.Rotation.Quaternion(*rot_quat)
-trans = PyKDL.Vector(*pos)
-tf_cam_ecm = PyKDL.Frame(rot, trans)
-pos_ball_ecm = tf_cam_ecm * ball_pos_cam
-pos_ball_ecm
 
-pos, rot_quat = tf_listener.lookupTransform('PSM1_psm_base_link', 'ecm_insertion_link', rospy.Time())
-tf_ecm_psm1 = PyKDL.Frame(PyKDL.Rotation.Quaternion(*rot_quat), PyKDL.Vector(*pos))
-pos_ball_psm1 = tf_ecm_psm1 * pos_ball_ecm
-pos_ball_psm1
 
-# aight its finally time to try and grab the ball 
-psm1.move(pos_ball_psm1)
+# +
+# some hardcoded transforms from suj-simulated.json
+ECM_WORLD_ORIGIN_TO_SUJ_ROT_MAT = np.asarray([[ 0.0000,  -1.0000,  0.0000],
+                                              [1.0000,  0.0000,  0.0000],
+                                              [ 0.0000,  0.0000,  1.0000]])
+ECM_WORLD_ORIGIN_TO_SUJ_ROT = PyKDL.Rotation(*ECM_WORLD_ORIGIN_TO_SUJ_ROT_MAT.flatten())
+ECM_WORLD_ORIGIN_TO_SUJ_TRANS = PyKDL.Vector(0.0000 , 0.0000, 0.4300)
+ECM_WORLD_ORIGIN_TO_SUJ_FRAME = PyKDL.Frame(ECM_WORLD_ORIGIN_TO_SUJ_ROT, ECM_WORLD_ORIGIN_TO_SUJ_TRANS)
+ECM_SUJ_TO_WORLD_ORIGIN_FRAME = ECM_WORLD_ORIGIN_TO_SUJ_FRAME.Inverse()
+
+ECM_SUJ_TO_BASE_ROT_MAT = np.asarray([[ 0.0000, 1.0000,  0.0000],
+                                      [ -1.0000,  0.0000,  0.0000],
+                                      [ 0.0000,  0.0000,  1.0000]])
+ECM_SUJ_TO_BASE_ROT = PyKDL.Rotation(*ECM_BASE_TO_SUJ_ROT_MAT.flatten())
+ECM_SUJ_TO_BASE_TRANS = PyKDL.Vector(0.6126, 0.0000,   0.1016)
+ECM_SUJ_TO_BASE_FRAME = PyKDL.Frame(ECM_BASE_TO_SUJ_ROT, ECM_BASE_TO_SUJ_TRANS)
+ECM_BASE_TO_SUJ_FRAME = ECM_SUJ_TO_BASE_FRAME.Inverse()
+
+ECM_BASE_TO_WORLD_FRAME = 
+
+PSM1_WORLD_ORIGIN_TO_SUJ_ROT_MAT = np.asarray([[-1.0000,  0.0000,  0.0000],
+                                               [ 0.0000, -1.0000,  0.0000],
+                                               [ 0.0000,  0.0000,  1.0000]])
+PSM1_WORLD_ORIGIN_TO_SUJ_ROT = PyKDL.Rotation(*PSM1_WORLD_ORIGIN_TO_SUJ_ROT_MAT.flatten())
+PSM1_WORLD_ORIGIN_TO_SUJ_TRANS = PyKDL.Vector(0.4864, 0.0000, 0.1524)
+PSM1_WORLD_ORIGIN_TO_SUJ_FRAME = PyKDL.Frame(PSM1_WORLD_ORIGIN_TO_SUJ_ROT, PSM1_WORLD_ORIGIN_TO_SUJ_TRANS)
+
+PSM1_SUJ_TO_TOOL_ROT_MAT = np.asarray([[ 0.0000, 1.0000,  0.0000],
+                                      [ -1.0000,  0.0000,  0.0000],
+                                      [ 0.0000,  0.0000,  1.0000]])
+PSM1_SUJ_TO_TOOL_ROT = PyKDL.Rotation(*PSM1_SUJ_TO_TOOL_ROT_MAT.flatten())
+PSM1_SUJ_TO_TOOL_TRANS = PyKDL.Vector(0.4864, 0.0000, 0.1524)
+PSM1_SUJ_TO_TOOL_FRAME = PyKDL.Frame(PSM1_SUJ_TO_TOOL_ROT, PSM1_SUJ_TO_TOOL_TRANS)
+
+PSM1_WORLD_TO_TOOL_FRAME = PSM1_SUJ_TO_TOOL_FRAME * PSM1_WORLD_ORIGIN_TO_SUJ_FRAME
+PSM1_TOOL_TO_WORLD_FRAME = PSM1_WORLD_TO_TOOL_FRAME.Inverse()
+# -
+
+tfl_cam_ecm_setup = tf_listener.lookupTransform('ecm_setup_link', 'camera', rospy.Time())
+tf_cam_ecm_setup = tfl_to_pykdl_frame(tfl_cam_ecm_setup)
+tf_cam_world = ECM_SUJ_TO_WORLD_ORIGIN_FRAME * tf_cam_ecm_setup
+ball_pos_world = tf_cam_world * ball_pos_cam
+ball_pos_ecm_setup_link = tf_cam_ecm_setup_base * ball_pos_cam
+ball_pos_ecm_setup_link # this is sane, i hope the SUJ transform for the 
 
 
