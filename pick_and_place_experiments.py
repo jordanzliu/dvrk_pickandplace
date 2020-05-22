@@ -67,10 +67,8 @@ jr.subscribe('/stereo/right/image_flipped', msg.Image, right_image_callback)
 jr.subscribe('/stereo/right/camera_info', msg.CameraInfo, right_camera_info_callback)
 # -
 
-left_image = cv2.flip(left_image, 0)
 plt.imshow(left_image)
 
-right_image = cv2.flip(right_image, 0)
 plt.imshow(right_image)
 
 print("LEFT CAM")
@@ -128,8 +126,8 @@ def rectify(cam, ros_pt):
 def invert_rectify(cam, ros_pt, frame_dims):
     return tuple(cam.rectifyPoint((frame_dims[0] - ros_pt.x, frame_dims[1] - ros_pt.y)))
 
-left_feat_pts = [rectify(left_cam, pt) for pt in left_feats.points]
-right_feat_pts = [rectify(right_cam, pt) for pt in right_feats.points]
+left_feat_pts = [(pt.x, pt.y) for pt in left_feats.points]
+right_feat_pts = [(pt.x, pt.y)for pt in right_feats.points]
 print(left_feat_pts)
 print(right_feat_pts)
 left_cam.rectifyImage(left_frame, left_frame_rectified)
@@ -141,13 +139,12 @@ left_cam.rectifyImage(right_frame, right_frame_rectified)
 plt.imshow(right_frame_rectified)
 
 from visualization_msgs.msg import Marker
+from geometry_msgs.msg import Point
 marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=10000)
 
 
 def publish_marker(point, frame, marker_id):
-    global marker
     marker = Marker()
-    marker.ns = 'malding'
     marker.header.frame_id = frame
     marker.header.stamp = rospy.Time.now()
     marker.type = Marker.SPHERE
@@ -160,9 +157,9 @@ def publish_marker(point, frame, marker_id):
     marker.pose.orientation.y = 0.0
     marker.pose.orientation.z = 0.0
     marker.pose.orientation.w = 1.0
-    marker.scale.x = 1.0
-    marker.scale.y = 1.0
-    marker.scale.z = 1.0
+    marker.scale.x = 0.2
+    marker.scale.y = 0.2
+    marker.scale.z = 0.2
     marker.color.a = 1.0
     marker.color.r = 1.0
     marker.color.g = 0.0
@@ -176,6 +173,8 @@ stereocam.fromCameraInfo(left_camera_info, right_camera_info)
 disparity = abs(left_feat_pts[0][0] - right_feat_pts[0][0])
 print(disparity)
 ball_pos_cam = stereocam.projectPixelTo3d(left_feat_pts[0], disparity)
+# opencv coordinates are left handed and ROS coordinates are right handed!!!!!!!! WTF
+ball_pos_cam = (ball_pos_cam[1], - ball_pos_cam[0], ball_pos_cam[2])
 print(ball_pos_cam)
 
 
@@ -188,15 +187,19 @@ def tfl_to_pykdl_frame(tfl_frame):
 
 ball_pos_cam = PyKDL.Vector(*ball_pos_cam)
 print(ball_pos_cam)
-publish_marker(ball_pos_cam, 'ecm_yaw_link', 50)
+publish_marker(PyKDL.Vector(0, 0, 0), 'world', 1)
 
 
+# +
 tf_cam_to_pitch_link = tf_listener.lookupTransform('ecm_pitch_link', 'camera', rospy.Time())
 tf_cam_to_pitch_link = tfl_to_pykdl_frame(tf_cam_to_pitch_link)
 tf_pitch_link_to_world = tf_listener.lookupTransform('simworld', 'Jp21_ECM', rospy.Time())
 tf_pitch_link_to_world = tfl_to_pykdl_frame(tf_pitch_link_to_world)
 tf_cam_to_world = tf_pitch_link_to_world * tf_cam_to_pitch_link
-tf_cam_to_world
+
+# straight up broadcasted the vision sensor frame
+tf_cam_to_world = tf_listener.lookupTransform('simworld', 'Vision_sensor_left', rospy.Time())
+tf_cam_to_world = tfl_to_pykdl_frame(tf_cam_to_world)
 
 # +
 # there's a hardcoded rotation between J1_PSM1 in sim and PSM1_psm_main
@@ -218,6 +221,22 @@ tf_camera_to_psm1 = tf_world_to_psm1_main * tf_cam_to_world
 ball_pos_psm1 = tf_camera_to_psm1 * ball_pos_cam
 ball_pos_psm1
 
+ball_pos_world = tf_cam_to_world * ball_pos_cam
+ball_pos_world
+ball_pos_j1_psm1 = tf_world_to_psm1_j1 * ball_pos_world
+print(ball_pos_j1_psm1)
 
+
+ball_pos_psm1_main = tf_world_to_psm1_main * ball_pos_world
+print(ball_pos_psm1_main)
+
+# this is the position piped directly from the sim
+# slight inaccuracy compared to `ball_pos_psm1` but numbers are very close
+real_ball_pos_psm1_j1 = PyKDL.Vector(-0.1254749298, 0.2540073991, 0.01814687252)
+real_ball_pos_psm1_main = j1_to_main_frame * real_ball_pos_psm1_j1
+psm1.move(real_ball_pos_psm1_main)
+real_ball_pos_psm1_main
+
+psm1.move(real_ball_pos_psm1_main)
 
 
