@@ -86,15 +86,9 @@ with debug_output:
     global psm1, ecm
     psm1 = dvrk.psm('PSM1')
     ecm = dvrk.ecm('ECM')
-    suj = dvrk.suj('ECM')
+    psm2 = dvrk.psm('PSM2')
 
 # -
-
-psm1.get_current_position()
-
-ecm.get_current_position()
-
-suj.get_current_position()
 
 tf_listener = tf.TransformListener()
 
@@ -114,129 +108,42 @@ print(right_feats)
 plt.imshow(right_frame)
 
 # +
-left_cam = image_geometry.PinholeCameraModel()
-left_cam.fromCameraInfo(left_camera_info)
-right_cam = image_geometry.PinholeCameraModel()
-right_cam.fromCameraInfo(right_camera_info)
-left_frame_rectified = deepcopy(left_frame)
+pick_and_place_utils = None
+from pick_and_place_utils import get_feat_position_and_img, tf_to_pykdl_frame, PSM_J1_TO_MAIN_TF
 
-def rectify(cam, ros_pt):
-    return tuple(cam.rectifyPoint((ros_pt.x, ros_pt.y)))
-
-def invert_rectify(cam, ros_pt, frame_dims):
-    return tuple(cam.rectifyPoint((frame_dims[0] - ros_pt.x, frame_dims[1] - ros_pt.y)))
-
-left_feat_pts = [(pt.x, pt.y) for pt in left_feats.points]
-right_feat_pts = [(pt.x, pt.y)for pt in right_feats.points]
-print(left_feat_pts)
-print(right_feat_pts)
-left_cam.rectifyImage(left_frame, left_frame_rectified)
+stereo_cam = image_geometry.StereoCameraModel()
+stereo_cam.fromCameraInfo(left_camera_info, right_camera_info)
+ball_pos_cam, left_frame = get_feat_position_and_img(left_image_msg, right_image_msg, stereo_cam)
+print(ball_pos_cam)
 plt.imshow(left_frame)
 # -
 
-right_frame_rectified = deepcopy(right_frame)
-left_cam.rectifyImage(right_frame, right_frame_rectified)
-plt.imshow(right_frame_rectified)
-
-from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Point
-marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=10000)
-
-
-def publish_marker(point, frame, marker_id):
-    marker = Marker()
-    marker.header.frame_id = frame
-    marker.header.stamp = rospy.Time.now()
-    marker.type = Marker.SPHERE
-    marker.action = Marker.ADD
-    marker.id = marker_id
-    marker.pose.position.x = point.x()
-    marker.pose.position.y = point.y()
-    marker.pose.position.z = point.z()
-    marker.pose.orientation.x = 0.0
-    marker.pose.orientation.y = 0.0
-    marker.pose.orientation.z = 0.0
-    marker.pose.orientation.w = 1.0
-    marker.scale.x = 0.2
-    marker.scale.y = 0.2
-    marker.scale.z = 0.2
-    marker.color.a = 1.0
-    marker.color.r = 1.0
-    marker.color.g = 0.0
-    marker.color.b = 0.0
-    marker.lifetime = rospy.Time.from_sec(10000)
-    marker_pub.publish(marker)
-
-
-stereocam = image_geometry.StereoCameraModel()
-stereocam.fromCameraInfo(left_camera_info, right_camera_info)
-disparity = abs(left_feat_pts[0][0] - right_feat_pts[0][0])
-print(disparity)
-ball_pos_cam = stereocam.projectPixelTo3d(left_feat_pts[0], disparity)
-# opencv coordinates are left handed and ROS coordinates are right handed!!!!!!!! WTF
-ball_pos_cam = (ball_pos_cam[1], - ball_pos_cam[0], ball_pos_cam[2])
-print(ball_pos_cam)
-
-
-def tfl_to_pykdl_frame(tfl_frame):
-    pos, rot_quat = tfl_frame
-    pos2 = PyKDL.Vector(*pos)
-    rot = PyKDL.Rotation.Quaternion(*rot_quat)
-    return PyKDL.Frame(rot, pos2)
-
-
 ball_pos_cam = PyKDL.Vector(*ball_pos_cam)
-print(ball_pos_cam)
-publish_marker(PyKDL.Vector(0, 0, 0), 'world', 1)
+tf_cam_to_jp21 = tf_to_pykdl_frame(tf_listener.lookupTransform('ecm_pitch_link_1', 'camera', rospy.Time()))
+ball_pos_jp21 = tf_cam_to_jp21 * ball_pos_cam
+ball_pos_jp21
 
+# did this to confirm that the /tf transforms provided by dVRK are within margin of error of 
+# actual sim coordinates
+tf_insertion_to_jp21 = tf_listener.lookupTransform('ecm_pitch_link_1', 'ecm_insertion_link', rospy.Time())
+tf_insertion_to_jp21
 
-# +
-tf_cam_to_pitch_link = tf_listener.lookupTransform('ecm_pitch_link', 'camera', rospy.Time())
-tf_cam_to_pitch_link = tfl_to_pykdl_frame(tf_cam_to_pitch_link)
-tf_pitch_link_to_world = tf_listener.lookupTransform('simworld', 'Jp21_ECM', rospy.Time())
-tf_pitch_link_to_world = tfl_to_pykdl_frame(tf_pitch_link_to_world)
-tf_cam_to_world = tf_pitch_link_to_world * tf_cam_to_pitch_link
-
-# straight up broadcasted the vision sensor frame
-tf_cam_to_world = tf_listener.lookupTransform('simworld', 'Vision_sensor_left', rospy.Time())
-tf_cam_to_world = tfl_to_pykdl_frame(tf_cam_to_world)
-
-# +
-# there's a hardcoded rotation between J1_PSM1 in sim and PSM1_psm_main
-j1_to_main_rot = PyKDL.Rotation(
-    PyKDL.Vector(-1,  0,  0),
-    PyKDL.Vector( 0,  0, -1),
-    PyKDL.Vector( 0, -1,  0)
-)
-j1_to_main_trans = PyKDL.Vector(0, 0, 0)
-j1_to_main_frame = PyKDL.Frame(j1_to_main_rot, j1_to_main_trans)
-
-tf_world_to_psm1_j1 = tf_listener.lookupTransform('J1_PSM1', 'simworld', rospy.Time())
-tf_world_to_psm1_j1 = tfl_to_pykdl_frame(tf_world_to_psm1_j1)
-tf_world_to_psm1_main = j1_to_main_frame * tf_world_to_psm1_j1
-tf_world_to_psm1_main
-# -
-
-tf_camera_to_psm1 = tf_world_to_psm1_main * tf_cam_to_world
-ball_pos_psm1 = tf_camera_to_psm1 * ball_pos_cam
-ball_pos_psm1
-
-ball_pos_world = tf_cam_to_world * ball_pos_cam
+tf_jp21_to_world = tf_to_pykdl_frame(tf_listener.lookupTransform('world', 'Jp21_ECM', rospy.Time()))
+ball_pos_world = tf_jp21_to_world * ball_pos_jp21
+# i'm a winner
 ball_pos_world
-ball_pos_j1_psm1 = tf_world_to_psm1_j1 * ball_pos_world
-print(ball_pos_j1_psm1)
 
+tf_world_to_psm1_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM1', 'world', rospy.Time()))
+ball_pos_psm1_j1 = tf_world_to_psm1_j1 * ball_pos_world
+# ok not off by *too* much
+ball_pos_psm1_j1
 
-ball_pos_psm1_main = tf_world_to_psm1_main * ball_pos_world
-print(ball_pos_psm1_main)
-
-# this is the position piped directly from the sim
-# slight inaccuracy compared to `ball_pos_psm1` but numbers are very close
-real_ball_pos_psm1_j1 = PyKDL.Vector(-0.1254749298, 0.2540073991, 0.01814687252)
-real_ball_pos_psm1_main = j1_to_main_frame * real_ball_pos_psm1_j1
-psm1.move(real_ball_pos_psm1_main)
-real_ball_pos_psm1_main
-
-psm1.move(real_ball_pos_psm1_main)
+# ok lets try something else 
+from math import pi
+j1_to_main_rot = PyKDL.Rotation.RPY(pi / 2, - pi, 0)
+j1_to_main_frame = PyKDL.Frame(j1_to_main_rot, PyKDL.Vector())
+ball_pos_psm1_main = j1_to_main_frame * ball_pos_psm1_j1
+ball_pos_psm1_main
+psm1.move(PyKDL.Vector(0, 0, -0.05))
 
 
