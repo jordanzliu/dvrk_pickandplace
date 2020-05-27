@@ -144,6 +144,13 @@ j1_to_main_rot = PyKDL.Rotation.RPY(pi / 2, - pi, 0)
 j1_to_main_frame = PyKDL.Frame(j1_to_main_rot, PyKDL.Vector())
 ball_pos_psm1_main = j1_to_main_frame * ball_pos_psm1_j1
 ball_pos_psm1_main
-psm1.move(PyKDL.Vector(0, 0, -0.05))
+
+# #### 
+
+psm1_rot = psm1.get_current_position().M
+psm1_pos = psm1.get_current_position().p
+psm1_pos
+
+psm1.move(PyKDL.Frame(PyKDL.Rotation.Identity(), ball_pos_psm1_main))
 
 
