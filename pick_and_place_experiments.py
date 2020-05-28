@@ -88,11 +88,16 @@ with debug_output:
     ecm = dvrk.ecm('ECM')
     psm2 = dvrk.psm('PSM2')
 
+HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.05, 0.0])
 # -
 
 tf_listener = tf.TransformListener()
 
 tf_listener.getFrameStrings()
+
+import time
+time.sleep(5)
+ecm.move_joint(HARDCODED_ECM_POS)
 
 import image_geometry
 import vision_pipeline
@@ -109,7 +114,7 @@ plt.imshow(right_frame)
 
 # +
 pick_and_place_utils = None
-from pick_and_place_utils import get_feat_position_and_img, tf_to_pykdl_frame, PSM_J1_TO_MAIN_TF
+from pick_and_place_utils import get_feat_position_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF
 
 stereo_cam = image_geometry.StereoCameraModel()
 stereo_cam.fromCameraInfo(left_camera_info, right_camera_info)
@@ -133,24 +138,29 @@ ball_pos_world = tf_jp21_to_world * ball_pos_jp21
 # i'm a winner
 ball_pos_world
 
-tf_world_to_psm1_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM1', 'world', rospy.Time()))
-ball_pos_psm1_j1 = tf_world_to_psm1_j1 * ball_pos_world
+tf_world_to_psm2_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM2', 'world', rospy.Time()))
+ball_pos_psm2_j1 = tf_world_to_psm2_j1 * ball_pos_world
 # ok not off by *too* much
-ball_pos_psm1_j1
+ball_pos_psm2_j1
 
-# ok lets try something else 
-from math import pi
-j1_to_main_rot = PyKDL.Rotation.RPY(pi / 2, - pi, 0)
-j1_to_main_frame = PyKDL.Frame(j1_to_main_rot, PyKDL.Vector())
-ball_pos_psm1_main = j1_to_main_frame * ball_pos_psm1_j1
-ball_pos_psm1_main
+ball_pos_psm2_main = PSM_J1_TO_BASE_LINK_TF * ball_pos_psm2_j1
+ball_pos_psm2_main
 
 # #### 
 
-psm1_rot = psm1.get_current_position().M
-psm1_pos = psm1.get_current_position().p
-psm1_pos
+psm2_rot = psm2.get_current_position().M
+psm2_pos = psm2.get_current_position().p
+psm2_pos
 
-psm1.move(PyKDL.Frame(PyKDL.Rotation.Identity(), ball_pos_psm1_main))
+psm2.move(ball_pos_psm2_main)
+
+cam_z_vec_world = (tf_jp21_to_world * tf_cam_to_jp21).M * PyKDL.Vector(0, 0, 1.0)
+cam_z_vec_psm2_main = (PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm2_j1).M * cam_z_vec_world
+psm2.move_joint_one(0., 5)
+psm2.open_jaw()
+psm2.dmove(0.03 * cam_z_vec_psm2_main)
+psm2.close_jaw()
+
+psm2.dmove(PyKDL.Vector(0, 0, 0.05))
 
 

@@ -10,20 +10,13 @@ import tf
 import image_geometry
 import vision_pipeline
 from tf_conversions import posemath
-
+from math import pi
 '''
 Some useful methods and constants for picking up a ball with dVRK and CoppeliaSim
 '''
 
-PSM_J1_TO_MAIN_ROT = PyKDL.Rotation(
-    PyKDL.Vector(-1,  0,  0),
-    PyKDL.Vector( 0,  0, -1),
-    PyKDL.Vector( 0, -1,  0)
-)
-
-PSM_J1_TO_MAIN_TRANS = PyKDL.Vector(0, 0, 0)
-
-PSM_J1_TO_MAIN_TF = PyKDL.Frame(PSM_J1_TO_MAIN_ROT, PSM_J1_TO_MAIN_TRANS)
+PSM_J1_TO_BASE_LINK_ROT = PyKDL.Rotation.RPY(pi / 2, - pi, 0)
+PSM_J1_TO_BASE_LINK_TF = PyKDL.Frame(PSM_J1_TO_BASE_LINK_ROT, PyKDL.Vector())
 
 # TODO: make this less hardcoded
 RED_BALL_FEAT_PATH = '../autonomous_surgical_camera/auto_cam/config/features/red_ball.csv'
