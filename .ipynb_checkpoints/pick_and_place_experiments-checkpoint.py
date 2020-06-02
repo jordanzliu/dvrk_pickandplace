@@ -99,10 +99,22 @@ import time
 time.sleep(5)
 ecm.move_joint(HARDCODED_ECM_POS)
 
+import image_geometry
+from vision_pipeline import feature_processor
+BALL_FEAT_PATH = '../autonomous_surgical_camera/auto_cam/config/features/red_ball.csv'
+cv2.imwrite('left.png', left_image)
+fp = feature_processor([BALL_FEAT_PATH], 'left.png')
+left_feats, left_frame = fp.Centroids(left_image_msg)
+right_feats, right_frame = fp.Centroids(right_image_msg)
+print(left_feats)
+plt.imshow(left_frame)
+
+print(right_feats)
+plt.imshow(right_frame)
+
 # +
 pick_and_place_utils = None
 from pick_and_place_utils import get_feat_position_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF
-import image_geometry
 
 stereo_cam = image_geometry.StereoCameraModel()
 stereo_cam.fromCameraInfo(left_camera_info, right_camera_info)
