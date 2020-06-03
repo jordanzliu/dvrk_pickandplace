@@ -88,7 +88,7 @@ with debug_output:
     ecm = dvrk.ecm('ECM')
     psm2 = dvrk.psm('PSM2')
 
-HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.05, 0.0])
+HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.04, 0.0])
 # -
 
 tf_listener = tf.TransformListener()
@@ -159,5 +159,36 @@ psm2.close_jaw()
 psm2.dmove( PyKDL.Vector(0, 0, 0.1))
 
 psm2.open_jaw()
+
+# +
+stereo = cv2.StereoSGBM_create(minDisparity=1, numDisparities=16, blockSize=5)
+
+left_image_bw = cv2.cvtColor(left_image, cv2.COLOR_RGB2GRAY)
+right_image_bw = cv2.cvtColor(right_image, cv2.COLOR_RGB2GRAY)
+disparity_map = stereo.compute(left_image_bw, right_image_bw)
+plt.imshow(disparity_map)
+plt.colorbar()
+
+# +
+from feature_processor import feature_processor
+from pick_and_place_utils import FEAT_PATHS, CV_TO_CAM_FRAME_ROT
+fp = feature_processor(FEAT_PATHS)
+feats, frame = fp.FindImageFeatures(left_image_msg)
+bowl = max(feats, key=lambda feat : cv2.contourArea(feat.contour))
+bowl_pts_cam = []
+print(bowl.contour)
+
+for pt_ in bowl.contour:
+    pt = tuple(np.clip(pt_[0], (0, 0), np.array(left_image_bw.shape) - np.array([1, 1])))
+    disparity = disparity_map[pt]
+    if disparity < 1:
+        continue
+    print(disparity)
+    cam_xyz = stereo_cam.projectPixelTo3d(pt, disparity)
+    cam_pt = np.matmul(CV_TO_CAM_FRAME_ROT, cam_xyz)
+    bowl_pts_cam.append(PyKDL.Vector(*cam_pt))
+
+plt.scatter([pt[0] for pt in bowl_pts_cam], [pt[1] for pt in bowl_pts_cam])
+# -
 
 

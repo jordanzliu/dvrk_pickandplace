@@ -148,6 +148,6 @@ class feature_processor:
 
         bowl = max(features, key=lambda feat : cv2.contourArea(feat.contour))
         bowl.type = FeatureType.BOWL
-        cv2.drawContours(frame, [bowl.contour], -1, (0, 255, 0), cv2.FILLED)
+        cv2.drawContours(frame, [bowl.contour], -1, (0, 255, 0), thickness=3)
         
         return features, frame

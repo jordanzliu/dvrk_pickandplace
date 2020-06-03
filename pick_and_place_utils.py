@@ -32,6 +32,9 @@ CV_TO_CAM_FRAME_ROT = np.asarray([
     [0, 0, 1]
 ])
 
+def clamp_image_coords(pt, im_shape):
+    return tuple(np.clip(pt, (0, 0), np.array(im_shape)[:2] - np.array([1, 1])))
+
 
 def get_feat_position_and_img(left_image_msg, right_image_msg, stereo_cam_model):
     # this gets the position of the red ball thing in the camera frame
@@ -52,6 +55,7 @@ def get_feat_position_and_img(left_image_msg, right_image_msg, stereo_cam_model)
         feat_positions.append(tuple(ball_pos_cam))
     print(feat_positions)
     return feat_positions, left_frame
+
 
 def tf_to_pykdl_frame(tfl_frame):
     pos, rot_quat = tfl_frame
