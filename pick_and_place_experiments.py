@@ -101,14 +101,15 @@ ecm.move_joint(HARDCODED_ECM_POS)
 
 # +
 pick_and_place_utils = None
-from pick_and_place_utils import get_feat_position_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF
+from pick_and_place_utils import get_objects_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF
 import image_geometry
 
 stereo_cam = image_geometry.StereoCameraModel()
 stereo_cam.fromCameraInfo(left_camera_info, right_camera_info)
-balls, left_frame = get_feat_position_and_img(left_image_msg, right_image_msg, stereo_cam)
-ball_pos_cam = balls[0]
+objects, left_frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam)
+ball_pos_cam = objects[0].pos_cam
 print(ball_pos_cam)
+plt.figure(figsize=(10, 5))
 plt.imshow(left_frame)
 # depth error experiments
 # (-0.02772727272727273, 0.009545454545454546, 0.14180015986663413) {-0.02987164259, 0.01018744707, 0.1481492519}
@@ -158,8 +159,6 @@ psm2.close_jaw()
 
 psm2.dmove( PyKDL.Vector(0, 0, 0.1))
 
-psm2.open_jaw()
-
 # +
 stereo = cv2.StereoSGBM_create(minDisparity=1, numDisparities=16, blockSize=5)
 
@@ -189,6 +188,45 @@ for pt_ in bowl.contour:
     bowl_pts_cam.append(PyKDL.Vector(*cam_pt))
 
 plt.scatter([pt[0] for pt in bowl_pts_cam], [pt[1] for pt in bowl_pts_cam])
+# +
+import plotly
+import plotly.graph_objects as go 
+
+plotly.offline.init_notebook_mode()
+trace = go.Scatter3d(
+    x = [pt[0] for pt in bowl_pts_cam],
+    y = [pt[1] for pt in bowl_pts_cam],
+    z = [pt[2] for pt in bowl_pts_cam],
+    mode = 'markers', 
+    marker = {
+            'size': 5,
+            'opacity': 0.8,
+        })
+
+layout = go.Layout(
+    margin={'l': 0, 'r': 0, 'b': 0, 't': 0}
+
+)
+
+data = [trace]
+plot_figure = go.Figure(data=data, layout=layout)
+plotly.offline.iplot(plot_figure)
+# StereoSGBM officially a failed experiment
+# the point cloud plot is pretty cool though
 # -
 
 
+from feature_processor import FeatureType
+bowl_obj = None
+for obj in objects:
+    if obj.type == FeatureType.BOWL:
+        bowl_obj = obj
+bowl_obj.pos_cam
+
+bowl_pos_cam = PyKDL.Vector(*bowl_obj.pos_cam)
+bowl_pos_world = tf_jp21_to_world * (tf_cam_to_jp21 * bowl_pos_cam)
+bowl_pos_psm2_main = PSM_J1_TO_BASE_LINK_TF * (tf_world_to_psm2_j1 * bowl_pos_world)
+# add a little bit to the z-axis to avoid hitting the bowl
+dest_psm2 = bowl_pos_psm2_main + PyKDL.Vector(0, 0, 0.1)
+psm2.move(dest_psm2)
+psm2.open_jaw()

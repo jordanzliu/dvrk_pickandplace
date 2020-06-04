@@ -8,7 +8,7 @@ import dvrk
 import PyKDL
 import tf
 import image_geometry
-from feature_processor import feature_processor
+from feature_processor import feature_processor, FeatureType
 from tf_conversions import posemath
 from math import pi
 import dvrk
@@ -32,29 +32,32 @@ CV_TO_CAM_FRAME_ROT = np.asarray([
     [0, 0, 1]
 ])
 
+class Object3d:
+    def __init__(self, pos_cam, type):
+        self.pos_cam = pos_cam
+        self.type = type
+
 def clamp_image_coords(pt, im_shape):
     return tuple(np.clip(pt, (0, 0), np.array(im_shape)[:2] - np.array([1, 1])))
 
 
-def get_feat_position_and_img(left_image_msg, right_image_msg, stereo_cam_model):
+def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model):
     # this gets the position of the red ball thing in the camera frame
     # and the image with X's on the desired features
     fp = feature_processor(FEAT_PATHS)
     left_feats, left_frame = fp.FindImageFeatures(left_image_msg)
     right_feats, right_frame = fp.FindImageFeatures(right_image_msg)
 
-    left_feat_pts = [feat.pos for feat in left_feats]
-    right_feat_pts = [feat.pos for feat in right_feats]
-    
-    feat_positions = []
-    for left_feat, right_feat in zip(left_feat_pts, right_feat_pts):
-        disparity = abs(left_feat[0] - right_feat[0])
-        ball_pos_cv = stereo_cam_model.projectPixelTo3d(left_feat_pts[0], disparity)
+    objects = []
+    for left_feat, right_feat in zip(left_feats, right_feats):
+        disparity = abs(left_feat.pos[0] - right_feat.pos[0])
+        print(left_feat.pos)
+        pos_cv = stereo_cam_model.projectPixelTo3d(left_feat.pos, float(disparity))
         # there's a fixed rotation to convert this to the camera coordinate frame
-        ball_pos_cam = np.matmul(CV_TO_CAM_FRAME_ROT, ball_pos_cv)
-        feat_positions.append(tuple(ball_pos_cam))
-    print(feat_positions)
-    return feat_positions, left_frame
+        pos_cam = np.matmul(CV_TO_CAM_FRAME_ROT, pos_cv)
+        objects.append(Object3d(pos_cam, left_feat.type))
+    print(objects)
+    return objects, np.hstack((left_frame, right_frame))
 
 
 def tf_to_pykdl_frame(tfl_frame):
@@ -63,19 +66,16 @@ def tf_to_pykdl_frame(tfl_frame):
     rot = PyKDL.Rotation.Quaternion(*rot_quat)
     return PyKDL.Frame(rot, pos2)
 
-# a little wrapper, this is to allow parallel actions between psms
-class PickAndPlaceTask:
-    def __init__(psm, obj_pos_psm, obj_dest_psm, approach_vec):
-        self.psm = psm
+# a state machine
+class PickAndPlaceStateMachine:
+
+    class State(Enum):
+        APPROACH_OBJECT,
+        GRAB_OBJECT,
+        APPROACH_DEST,
+        DROP_OBJECT
+
+    def __init__(self, obj_pos, obj_dest_pos, approach_vec):
         self.obj_pos = obj_pos
-        self.obj_dest = obj_dest_psm
+        self.obj_dest_pos = obj_dest_pos
         self.approach_vec = approach_vec
-
-    def _reached_pose(self, pose):
-        # check if we've reached a particular pose within a margin of error
-        # TODO: check how the psm class does this
-        pass
-
-    def update(self):
-        # coroutines
-        yield True
