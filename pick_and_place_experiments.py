@@ -88,7 +88,7 @@ with debug_output:
     ecm = dvrk.ecm('ECM')
     psm2 = dvrk.psm('PSM2')
 
-HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.04, 0.0])
+HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.035, 0.0])
 # -
 
 tf_listener = tf.TransformListener()
@@ -147,74 +147,19 @@ psm2_rot = psm2.get_current_position().M
 psm2_pos = psm2.get_current_position().p
 psm2_pos
 
-psm2.move(ball_pos_psm2_main)
+# +
+# psm2.move(ball_pos_psm2_main)
+# -
 
 cam_z_vec_world = (tf_jp21_to_world * tf_cam_to_jp21).M * PyKDL.Vector(0, 0, 1.0)
 cam_z_vec_psm2_main = (PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm2_j1).M * cam_z_vec_world
 
-psm2.move_joint_one(0., 5)
-psm2.open_jaw()
-psm2.dmove(0.03 * cam_z_vec_psm2_main)
-psm2.close_jaw()
-
-psm2.dmove( PyKDL.Vector(0, 0, 0.1))
-
 # +
-stereo = cv2.StereoSGBM_create(minDisparity=1, numDisparities=16, blockSize=5)
-
-left_image_bw = cv2.cvtColor(left_image, cv2.COLOR_RGB2GRAY)
-right_image_bw = cv2.cvtColor(right_image, cv2.COLOR_RGB2GRAY)
-disparity_map = stereo.compute(left_image_bw, right_image_bw)
-plt.imshow(disparity_map)
-plt.colorbar()
-
-# +
-from feature_processor import feature_processor
-from pick_and_place_utils import FEAT_PATHS, CV_TO_CAM_FRAME_ROT
-fp = feature_processor(FEAT_PATHS)
-feats, frame = fp.FindImageFeatures(left_image_msg)
-bowl = max(feats, key=lambda feat : cv2.contourArea(feat.contour))
-bowl_pts_cam = []
-print(bowl.contour)
-
-for pt_ in bowl.contour:
-    pt = tuple(np.clip(pt_[0], (0, 0), np.array(left_image_bw.shape) - np.array([1, 1])))
-    disparity = disparity_map[pt]
-    if disparity < 1:
-        continue
-    print(disparity)
-    cam_xyz = stereo_cam.projectPixelTo3d(pt, disparity)
-    cam_pt = np.matmul(CV_TO_CAM_FRAME_ROT, cam_xyz)
-    bowl_pts_cam.append(PyKDL.Vector(*cam_pt))
-
-plt.scatter([pt[0] for pt in bowl_pts_cam], [pt[1] for pt in bowl_pts_cam])
-# +
-import plotly
-import plotly.graph_objects as go 
-
-plotly.offline.init_notebook_mode()
-trace = go.Scatter3d(
-    x = [pt[0] for pt in bowl_pts_cam],
-    y = [pt[1] for pt in bowl_pts_cam],
-    z = [pt[2] for pt in bowl_pts_cam],
-    mode = 'markers', 
-    marker = {
-            'size': 5,
-            'opacity': 0.8,
-        })
-
-layout = go.Layout(
-    margin={'l': 0, 'r': 0, 'b': 0, 't': 0}
-
-)
-
-data = [trace]
-plot_figure = go.Figure(data=data, layout=layout)
-plotly.offline.iplot(plot_figure)
-# StereoSGBM officially a failed experiment
-# the point cloud plot is pretty cool though
+# psm2.move_joint_one(0., 5)
+# psm2.open_jaw()
+# psm2.dmove(0.03 * cam_z_vec_psm2_main)
+# psm2.close_jaw()
 # -
-
 
 from feature_processor import FeatureType
 bowl_obj = None
@@ -227,6 +172,20 @@ bowl_pos_cam = PyKDL.Vector(*bowl_obj.pos_cam)
 bowl_pos_world = tf_jp21_to_world * (tf_cam_to_jp21 * bowl_pos_cam)
 bowl_pos_psm2_main = PSM_J1_TO_BASE_LINK_TF * (tf_world_to_psm2_j1 * bowl_pos_world)
 # add a little bit to the z-axis to avoid hitting the bowl
-dest_psm2 = bowl_pos_psm2_main + PyKDL.Vector(0, 0, 0.1)
-psm2.move(dest_psm2)
-psm2.open_jaw()
+dest_psm2 = bowl_pos_psm2_main + PyKDL.Vector(0, 0, 0.05)
+
+# +
+from pick_and_place_arm_sm import PickAndPlaceStateMachine
+
+for the_object in objects:
+    if the_object.type  == FeatureType.BOWL:
+        continue
+    obj_pos_cam = PyKDL.Vector(*the_object.pos_cam)
+    obj_pos_world = tf_jp21_to_world * (tf_cam_to_jp21 * obj_pos_cam)
+    obj_pos_psm2 = PSM_J1_TO_BASE_LINK_TF * (tf_world_to_psm2_j1 * obj_pos_world)
+    sm = PickAndPlaceStateMachine(psm2, obj_pos_psm2, dest_psm2, 0.03 * cam_z_vec_psm2_main)
+    while not sm.is_done():
+        sm.run_once()
+# -
+
+

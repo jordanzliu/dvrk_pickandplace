@@ -65,17 +65,3 @@ def tf_to_pykdl_frame(tfl_frame):
     pos2 = PyKDL.Vector(*pos)
     rot = PyKDL.Rotation.Quaternion(*rot_quat)
     return PyKDL.Frame(rot, pos2)
-
-# a state machine
-class PickAndPlaceStateMachine:
-
-    class State(Enum):
-        APPROACH_OBJECT,
-        GRAB_OBJECT,
-        APPROACH_DEST,
-        DROP_OBJECT
-
-    def __init__(self, obj_pos, obj_dest_pos, approach_vec):
-        self.obj_pos = obj_pos
-        self.obj_dest_pos = obj_dest_pos
-        self.approach_vec = approach_vec
