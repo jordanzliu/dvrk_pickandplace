@@ -21,11 +21,13 @@ class FeatureType(Enum):
 
 
 class ImageFeature:
-    def __init__(self, type, pos, contour):
+    def __init__(self, type, pos, color, contour):
         self.type = type
         self.pos = pos
         self.contour = contour
-        rospy.loginfo("ImageFeature type={}, pos={}, area={}".format(type, pos, cv2.contourArea(contour)))
+        self.color = color
+        rospy.loginfo("ImageFeature type={}, pos={}, color={}, area={}".format(
+            type, pos, color, cv2.contourArea(contour)))
 
 class feature_processor:
 
@@ -141,7 +143,8 @@ class feature_processor:
 
                 # TODO: more intelligent bowl classification logic besides picking
                 # the largest area contour and calling it the bowl
-                features.append(ImageFeature(type=FeatureType.BALL, pos=(cx, cy), contour=c))
+                features.append(ImageFeature(type=FeatureType.BALL, pos=(cx, cy), color=f, 
+                                             contour=c))
 
                 # Creates a circle at the centroid point
                 cv2.circle(frame, (cx, cy), 3, (0, 0, 0), -1)

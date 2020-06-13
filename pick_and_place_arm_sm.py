@@ -122,6 +122,10 @@ class PickAndPlaceStateMachine:
         }
 
 
+    def update_world(self, world):
+        pass
+
+
     def run_once(self):
         loginfo("Running state {}".format(self.state))
         if self._done:

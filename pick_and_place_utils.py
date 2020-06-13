@@ -12,6 +12,8 @@ from feature_processor import feature_processor, FeatureType
 from tf_conversions import posemath
 from math import pi
 import dvrk
+from collections import OrderedDict 
+
 '''
 Some useful methods and constants for picking up a ball with dVRK and CoppeliaSim
 '''
@@ -65,3 +67,12 @@ def tf_to_pykdl_frame(tfl_frame):
     pos2 = PyKDL.Vector(*pos)
     rot = PyKDL.Rotation.Quaternion(*rot_quat)
     return PyKDL.Frame(rot, pos2)
+
+
+class FeatureTracker:
+    def __init__(self):
+        self.last_detections = dict()
+
+    def update(self, detections):
+        pass
+        # TODO: this
