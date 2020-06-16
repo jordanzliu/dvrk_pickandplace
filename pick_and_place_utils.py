@@ -35,15 +35,23 @@ CV_TO_CAM_FRAME_ROT = np.asarray([
 ])
 
 class Object3d:
-    def __init__(self, pos_cam, type):
-        self.pos_cam = pos_cam
+    def __init__(self, pos, type, color):
+        self.pos = pos
         self.type = type
+        self.color = color
+    
+    def __str__(self):
+        return "<Object3d pos: {} type: {} color: {}>".format(self.pos, self.type, self.color)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 def clamp_image_coords(pt, im_shape):
     return tuple(np.clip(pt, (0, 0), np.array(im_shape)[:2] - np.array([1, 1])))
 
 
-def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model):
+def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_to_world_tf=None):
     # this gets the position of the red ball thing in the camera frame
     # and the image with X's on the desired features
     fp = feature_processor(FEAT_PATHS)
@@ -57,7 +65,16 @@ def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model):
         pos_cv = stereo_cam_model.projectPixelTo3d(left_feat.pos, float(disparity))
         # there's a fixed rotation to convert this to the camera coordinate frame
         pos_cam = np.matmul(CV_TO_CAM_FRAME_ROT, pos_cv)
-        objects.append(Object3d(pos_cam, left_feat.type))
+        pos = None
+        if cam_to_world_tf is not None:
+            pos = cam_to_world_tf * PyKDL.Vector(*pos_cam)
+        else:
+            pos = PyKDL.Vector(*pos_cam)
+
+        if left_feat.color != right_feat.color:
+            rospy.loginfo("Color mismatch between left and right detection")
+
+        objects.append(Object3d(pos, left_feat.type, left_feat.color))
     print(objects)
     return objects, np.hstack((left_frame, right_frame))
 
@@ -68,11 +85,17 @@ def tf_to_pykdl_frame(tfl_frame):
     rot = PyKDL.Rotation.Quaternion(*rot_quat)
     return PyKDL.Frame(rot, pos2)
 
+class World:
+    def __init__(self, all_detections):
+        self.objects = []
+        for object in all_detections:
+            if object.type == FeatureType.BOWL:
+                self.bowl = object
+            else:
+                self.objects.append(object)
 
-class FeatureTracker:
-    def __init__(self):
-        self.last_detections = dict()
+    def __str__(self):
+        return "<World objects: {}\nbowl: {}>".format(self.objects, self.bowl)
 
-    def update(self, detections):
-        pass
-        # TODO: this
+    def __repr__(self):
+        return self.__str__()

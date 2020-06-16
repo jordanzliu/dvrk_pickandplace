@@ -26,8 +26,14 @@ class ImageFeature:
         self.pos = pos
         self.contour = contour
         self.color = color
-        rospy.loginfo("ImageFeature type={}, pos={}, color={}, area={}".format(
-            type, pos, color, cv2.contourArea(contour)))
+     
+    def __str__(self):
+        return "ImageFeature type={}, pos={}, color={}, area={}".format(
+                self.type, self.pos, self.color, cv2.contourArea(self.contour))
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class feature_processor:
 
@@ -46,8 +52,6 @@ class feature_processor:
 
     def StoreHSVRanges(self, feature_files):
         hsv_ranges = np.empty((1,  2, 3))
-        rospy.loginfo("Number of feature files:")
-        rospy.loginfo(len(feature_files))
         for feature in feature_files:
             feature_range = np.genfromtxt(feature, delimiter=',')
             range_reshaped = np.reshape(feature_range,  (1, 2, 3))
@@ -55,8 +59,6 @@ class feature_processor:
 
         # Delete empty row
         hsv_ranges = np.delete(hsv_ranges,  0, axis=0)
-        rospy.loginfo("Feature ranges: ")
-        rospy.loginfo(hsv_ranges)
 
         self.hsv_ranges = hsv_ranges
         self.n_features = hsv_ranges.shape[0]
@@ -152,5 +154,4 @@ class feature_processor:
         bowl = max(features, key=lambda feat : cv2.contourArea(feat.contour))
         bowl.type = FeatureType.BOWL
         cv2.drawContours(frame, [bowl.contour], -1, (0, 255, 0), thickness=3)
-        print([feat.type for feat in features])
         return features, frame

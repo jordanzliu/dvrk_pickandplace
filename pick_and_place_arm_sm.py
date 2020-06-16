@@ -3,6 +3,7 @@
 from enum import Enum
 import math
 from rospy import loginfo
+import PyKDL
 
 # TODO: failed pickup state transition from APPROACH_DEST to APPROACH_OBJECT
 # TODO: pass entire estimated world into the run_once function 
@@ -35,26 +36,26 @@ class PickAndPlaceStateMachine:
 
 
     def _approach_object(self):
-        if self.psm.get_desired_position().p != self.obj_pos:
-            self.psm.move(self.obj_pos, blocking=False)
+        if self.psm.get_desired_position().p != self._obj_pos():
+            self.psm.move(self._obj_pos(), blocking=False)
 
 
     def _approach_object_next(self):
         if self.psm._arm__goal_reached and \
-            vector_eps_eq(self.psm.get_current_position().p, self.obj_pos):
+            vector_eps_eq(self.psm.get_current_position().p, self._obj_pos()):
             return PickAndPlaceState.GRAB_OBJECT
         else:
             return PickAndPlaceState.APPROACH_OBJECT
     
 
     def _grab_object(self):
-        if self.psm.get_desired_position().p != self.obj_pos + self.approach_vec:
-            self.psm.move(self.obj_pos + self.approach_vec, blocking=False)
+        if self.psm.get_desired_position().p != self._obj_pos() + self.approach_vec:
+            self.psm.move(self._obj_pos() + self.approach_vec, blocking=False)
 
 
     def _grab_object_next(self):
         if self.psm._arm__goal_reached and \
-            vector_eps_eq(self.psm.get_current_position().p, self.obj_pos + self.approach_vec):
+            vector_eps_eq(self.psm.get_current_position().p, self._obj_pos() + self.approach_vec):
             return PickAndPlaceState.CLOSE_JAW
         else:
             return PickAndPlaceState.GRAB_OBJECT
@@ -73,13 +74,13 @@ class PickAndPlaceStateMachine:
 
 
     def _approach_dest(self):
-        if self.psm.get_desired_position().p != self.obj_dest:
-            self.psm.move(self.obj_dest, blocking=False)
+        if self.psm.get_desired_position().p != self._obj_dest():
+            self.psm.move(self._obj_dest(), blocking=False)
 
 
     def _approach_dest_next(self):
         if self.psm._arm__goal_reached and \
-            vector_eps_eq(self.psm.get_current_position().p, self.obj_dest):
+            vector_eps_eq(self.psm.get_current_position().p, self._obj_dest()):
             return PickAndPlaceState.DROP_OBJECT
         else:
             return PickAndPlaceState.APPROACH_DEST 
@@ -93,16 +94,42 @@ class PickAndPlaceStateMachine:
     def _drop_object_next(self):
         # open_jaw() sets jaw to 80 deg, we check if we're open past 30 deg
         if self.psm.get_current_jaw_position() > math.pi / 6:
-            self._done = True
+            # jaw is open, state is done, check if we finish or go back to APPROACH_OBJECT
+            
+            # object closest to original object
+            closest_obj = min(self.world.objects, key=lambda obj: (obj.pos - self.object.pos).Norm())
+            if closest_obj.color == self.object.color and (closest_obj.pos - self.object.pos).Norm() < 0.01:
+                # we didn't pick up the object, go back to APPROACH_OBJECT
+                loginfo("Failed to pick up object {}, trying again".format(self.object))
+                return PickAndPlaceState.APPROACH_OBJECT
+            else:
+                loginfo("Done pick and place for object {}".format(self.object))
+                self._done = True
+
         return PickAndPlaceState.DROP_OBJECT
 
 
-    def __init__(self, psm, obj_pos, obj_dest, approach_vec):
+    def _obj_pos(self):
+        print("Object position: {}".format(self.world_to_psm_tf * self.object.pos))
+        return self.world_to_psm_tf * self.object.pos
+
+    
+    def _approach_vec(self):
+        return self.world_to_psm_tf * self.approach_vec
+
+
+    def _obj_dest(self):
+        return self.world_to_psm_tf * self.obj_dest
+
+
+    def __init__(self, psm, world, world_to_psm_tf, object, approach_vec):
         self.state = PickAndPlaceState.APPROACH_OBJECT
         self.psm = psm
-        self.obj_pos = obj_pos
-        self.obj_dest = obj_dest
+        self.object = object
+        self.world = world
+        self.world_to_psm_tf = world_to_psm_tf
         self.approach_vec = approach_vec
+        self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.05)
         self._done = False
         self.state_functions = {
             PickAndPlaceState.OPEN_JAW : self._open_jaw,
@@ -123,7 +150,7 @@ class PickAndPlaceStateMachine:
 
 
     def update_world(self, world):
-        pass
+        self.world = world
 
 
     def run_once(self):

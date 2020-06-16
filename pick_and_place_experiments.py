@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import dvrk
 import PyKDL
 import tf
+import time
 from tf_conversions import posemath
 
 rospy.init_node('notebook')
@@ -65,6 +66,7 @@ jr.subscribe('/stereo/left/image_flipped', msg.Image, left_image_callback)
 jr.subscribe('/stereo/left/camera_info', msg.CameraInfo, left_camera_info_callback)
 jr.subscribe('/stereo/right/image_flipped', msg.Image, right_image_callback)
 jr.subscribe('/stereo/right/camera_info', msg.CameraInfo, right_camera_info_callback)
+time.sleep(1)
 # -
 
 plt.imshow(left_image)
@@ -95,97 +97,52 @@ tf_listener = tf.TransformListener()
 
 tf_listener.getFrameStrings()
 
-import time
 time.sleep(5)
 ecm.move_joint(HARDCODED_ECM_POS)
 
 # +
 pick_and_place_utils = None
-from pick_and_place_utils import get_objects_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF
+from pick_and_place_utils import get_objects_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF, World
 import image_geometry
+
+tf_cam_to_jp21 = tf_to_pykdl_frame(tf_listener.lookupTransform('ecm_pitch_link_1', 'camera', rospy.Time()))
+tf_jp21_to_world = tf_to_pykdl_frame(tf_listener.lookupTransform('world', 'Jp21_ECM', rospy.Time()))
+tf_cam_to_world = tf_jp21_to_world * tf_cam_to_jp21
+tf_cam_to_world
+# -
+
+tf_world_to_psm2_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM2', 'world', rospy.Time()))
+tf_world_to_psm2_base = PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm2_j1
 
 stereo_cam = image_geometry.StereoCameraModel()
 stereo_cam.fromCameraInfo(left_camera_info, right_camera_info)
-objects, left_frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam)
-ball_pos_cam = objects[0].pos_cam
-print(ball_pos_cam)
-plt.figure(figsize=(10, 5))
-plt.imshow(left_frame)
-# depth error experiments
-# (-0.02772727272727273, 0.009545454545454546, 0.14180015986663413) {-0.02987164259, 0.01018744707, 0.1481492519}
-# (-0.028636363636363637, 0.01, 0.14180015986663413) {-0.02869459987, 0.009940028191, 0.1379978657} 
-# (-0.013333333333333334, 0.010416666666666666, 0.12998347987774794) {-0.01380112767, 0.009659290314, 0.1300171614} 
-# (0.04038461538461539, 0.008076923076923077, 0.11998475065638273) {-0.009348809719, 0.01096570492, 0.1307697296} 
-# -
-
-ball_pos_cam = PyKDL.Vector(*ball_pos_cam)
-tf_cam_to_jp21 = tf_to_pykdl_frame(tf_listener.lookupTransform('ecm_pitch_link_1', 'camera', rospy.Time()))
-ball_pos_jp21 = tf_cam_to_jp21 * ball_pos_cam
-ball_pos_jp21
-
-# did this to confirm that the /tf transforms provided by dVRK are within margin of error of 
-# actual sim coordinates
-tf_insertion_to_jp21 = tf_listener.lookupTransform('ecm_pitch_link_1', 'ecm_insertion_link', rospy.Time())
-tf_insertion_to_jp21
-
-tf_jp21_to_world = tf_to_pykdl_frame(tf_listener.lookupTransform('world', 'Jp21_ECM', rospy.Time()))
-ball_pos_world = tf_jp21_to_world * ball_pos_jp21
-# i'm a winner
-ball_pos_world
-
-tf_world_to_psm2_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM2', 'world', rospy.Time()))
-ball_pos_psm2_j1 = tf_world_to_psm2_j1 * ball_pos_world
-# ok not off by *too* much
-ball_pos_psm2_j1
-
-ball_pos_psm2_main = PSM_J1_TO_BASE_LINK_TF * ball_pos_psm2_j1
-ball_pos_psm2_main
+objects, left_frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, 
+                                          cam_to_world_tf=tf_cam_to_world)
+world = World(objects)
+world
 
 # #### 
-
-psm2_rot = psm2.get_current_position().M
-psm2_pos = psm2.get_current_position().p
-psm2_pos
-
-# +
-# psm2.move(ball_pos_psm2_main)
-# -
-
-cam_z_vec_world = (tf_jp21_to_world * tf_cam_to_jp21).M * PyKDL.Vector(0, 0, 1.0)
-cam_z_vec_psm2_main = (PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm2_j1).M * cam_z_vec_world
-
-# +
-# psm2.move_joint_one(0., 5)
-# psm2.open_jaw()
-# psm2.dmove(0.03 * cam_z_vec_psm2_main)
-# psm2.close_jaw()
-# -
-
-from feature_processor import FeatureType
-bowl_obj = None
-for obj in objects:
-    if obj.type == FeatureType.BOWL:
-        bowl_obj = obj
-bowl_obj.pos_cam
-
-bowl_pos_cam = PyKDL.Vector(*bowl_obj.pos_cam)
-bowl_pos_world = tf_jp21_to_world * (tf_cam_to_jp21 * bowl_pos_cam)
-bowl_pos_psm2_main = PSM_J1_TO_BASE_LINK_TF * (tf_world_to_psm2_j1 * bowl_pos_world)
-# add a little bit to the z-axis to avoid hitting the bowl
-dest_psm2 = bowl_pos_psm2_main + PyKDL.Vector(0, 0, 0.05)
 
 # +
 from pick_and_place_arm_sm import PickAndPlaceStateMachine
 
-for the_object in objects:
-    if the_object.type  == FeatureType.BOWL:
-        continue
-    obj_pos_cam = PyKDL.Vector(*the_object.pos_cam)
-    obj_pos_world = tf_jp21_to_world * (tf_cam_to_jp21 * obj_pos_cam)
-    obj_pos_psm2 = PSM_J1_TO_BASE_LINK_TF * (tf_world_to_psm2_j1 * obj_pos_world)
-    sm = PickAndPlaceStateMachine(psm2, obj_pos_psm2, dest_psm2, 0.03 * cam_z_vec_psm2_main)
-    while not sm.is_done():
-        sm.run_once()
-# -
+objects_to_pick = deepcopy(world.objects)
 
+approach_vec = PyKDL.Vector(0, 0, -0.02)
+
+print(objects_to_pick)
+
+for obj in objects_to_pick:
+    objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+    world = World(objects)
+    sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, obj, approach_vec)
+    
+    while not sm.is_done():
+        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam)
+        world = World(objects)
+        sm.update_world(world)
+        sm.run_once()
+        print("AWDHAWHIOUDAWDAHWUIOPDHUAWDUIOAWDHAWDWDAWD {}".format(sm.is_done()))
+
+# -
 
