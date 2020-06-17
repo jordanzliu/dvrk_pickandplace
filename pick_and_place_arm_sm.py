@@ -2,7 +2,7 @@
 # https://python-3-patterns-idioms-test.readthedocs.io/en/latest/StateMachine.html
 from enum import Enum
 import math
-from rospy import loginfo
+from rospy import loginfo, logwarn
 import PyKDL
 
 # TODO: failed pickup state transition from APPROACH_DEST to APPROACH_OBJECT
@@ -97,10 +97,13 @@ class PickAndPlaceStateMachine:
             # jaw is open, state is done, check if we finish or go back to APPROACH_OBJECT
             
             # object closest to original object
-            closest_obj = min(self.world.objects, key=lambda obj: (obj.pos - self.object.pos).Norm())
-            if closest_obj.color == self.object.color and (closest_obj.pos - self.object.pos).Norm() < 0.01:
+            closest_obj = min(self.world.objects, 
+                              key=lambda obj: (obj.pos - self.object.pos).Norm())
+            loginfo("Closest object to {}: {}".format(self.object.pos, closest_obj))
+            if self.closed_loop and closest_obj.color == self.object.color \
+                and (closest_obj.pos - self.object.pos).Norm() < 0.01:
                 # we didn't pick up the object, go back to APPROACH_OBJECT
-                loginfo("Failed to pick up object {}, trying again".format(self.object))
+                logwarn("Failed to pick up object {}, trying again".format(self.object))
                 return PickAndPlaceState.APPROACH_OBJECT
             else:
                 loginfo("Done pick and place for object {}".format(self.object))
@@ -110,7 +113,6 @@ class PickAndPlaceStateMachine:
 
 
     def _obj_pos(self):
-        print("Object position: {}".format(self.world_to_psm_tf * self.object.pos))
         return self.world_to_psm_tf * self.object.pos
 
     
@@ -122,13 +124,16 @@ class PickAndPlaceStateMachine:
         return self.world_to_psm_tf * self.obj_dest
 
 
-    def __init__(self, psm, world, world_to_psm_tf, object, approach_vec):
+    def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, closed_loop=True):
         self.state = PickAndPlaceState.APPROACH_OBJECT
         self.psm = psm
         self.object = object
         self.world = world
         self.world_to_psm_tf = world_to_psm_tf
         self.approach_vec = approach_vec
+        # if this is False, we don't check if we successfully picked up the object
+        # and go straight to the done state
+        self.closed_loop = closed_loop
         self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.05)
         self._done = False
         self.state_functions = {

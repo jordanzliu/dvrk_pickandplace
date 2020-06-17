@@ -97,19 +97,17 @@ tf_listener = tf.TransformListener()
 
 tf_listener.getFrameStrings()
 
-time.sleep(5)
+time.sleep(3)
 ecm.move_joint(HARDCODED_ECM_POS)
 
-# +
 pick_and_place_utils = None
 from pick_and_place_utils import get_objects_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF, World
 import image_geometry
-
+time.sleep(1)
 tf_cam_to_jp21 = tf_to_pykdl_frame(tf_listener.lookupTransform('ecm_pitch_link_1', 'camera', rospy.Time()))
 tf_jp21_to_world = tf_to_pykdl_frame(tf_listener.lookupTransform('world', 'Jp21_ECM', rospy.Time()))
 tf_cam_to_world = tf_jp21_to_world * tf_cam_to_jp21
 tf_cam_to_world
-# -
 
 tf_world_to_psm2_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM2', 'world', rospy.Time()))
 tf_world_to_psm2_base = PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm2_j1
@@ -128,7 +126,8 @@ from pick_and_place_arm_sm import PickAndPlaceStateMachine
 
 objects_to_pick = deepcopy(world.objects)
 
-approach_vec = PyKDL.Vector(0, 0, -0.02)
+# this vector is empirically determined
+approach_vec = PyKDL.Vector(0, -0.02, -0.03)
 
 print(objects_to_pick)
 
@@ -142,7 +141,6 @@ for obj in objects_to_pick:
         world = World(objects)
         sm.update_world(world)
         sm.run_once()
-        print("AWDHAWHIOUDAWDAHWUIOPDHUAWDUIOAWDHAWDWDAWD {}".format(sm.is_done()))
 
 # -
 
