@@ -14,7 +14,8 @@ class PickAndPlaceState(Enum):
     GRAB_OBJECT = 3,
     CLOSE_JAW = 4,
     APPROACH_DEST = 5,
-    DROP_OBJECT = 6
+    DROP_OBJECT = 6,
+    DONE = 7
 
 VECTOR_EPS = 0.005
 
@@ -107,7 +108,7 @@ class PickAndPlaceStateMachine:
                 return PickAndPlaceState.APPROACH_OBJECT
             else:
                 loginfo("Done pick and place for object {}".format(self.object))
-                self._done = True
+                return PickAndPlaceState.DONE
 
         return PickAndPlaceState.DROP_OBJECT
 
@@ -135,7 +136,6 @@ class PickAndPlaceStateMachine:
         # and go straight to the done state
         self.closed_loop = closed_loop
         self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.05)
-        self._done = False
         self.state_functions = {
             PickAndPlaceState.OPEN_JAW : self._open_jaw,
             PickAndPlaceState.APPROACH_OBJECT : self._approach_object,
@@ -160,7 +160,7 @@ class PickAndPlaceStateMachine:
 
     def run_once(self):
         loginfo("Running state {}".format(self.state))
-        if self._done:
+        if self.is_done():
             return
         # execute the current state
         self.state_functions[self.state]()
@@ -168,5 +168,5 @@ class PickAndPlaceStateMachine:
         self.state = self.next_functions[self.state]()
 
     def is_done(self):
-        return self._done
+        return self.state == PickAndPlaceState.DONE
     

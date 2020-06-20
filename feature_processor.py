@@ -154,4 +154,13 @@ class feature_processor:
         bowl = max(features, key=lambda feat : cv2.contourArea(feat.contour))
         bowl.type = FeatureType.BOWL
         cv2.drawContours(frame, [bowl.contour], -1, (0, 255, 0), thickness=3)
+
+        # remove features that are already in the bowl 
+        features = filter(lambda feat : 
+                        cv2.pointPolygonTest(bowl.contour, feat.pos, measureDist=False) < 0, 
+                    features)
+
+        # spaghetti code
+        features.append(bowl)
+
         return features, frame

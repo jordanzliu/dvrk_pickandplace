@@ -66,7 +66,9 @@ jr.subscribe('/stereo/left/image_flipped', msg.Image, left_image_callback)
 jr.subscribe('/stereo/left/camera_info', msg.CameraInfo, left_camera_info_callback)
 jr.subscribe('/stereo/right/image_flipped', msg.Image, right_image_callback)
 jr.subscribe('/stereo/right/camera_info', msg.CameraInfo, right_camera_info_callback)
-time.sleep(1)
+
+while left_image is None:
+    time.sleep(0.5)
 # -
 
 plt.imshow(left_image)
@@ -114,22 +116,22 @@ tf_world_to_psm2_base = PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm2_j1
 
 stereo_cam = image_geometry.StereoCameraModel()
 stereo_cam.fromCameraInfo(left_camera_info, right_camera_info)
-objects, left_frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, 
+objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, 
                                           cam_to_world_tf=tf_cam_to_world)
 world = World(objects)
 world
 
-# #### 
-
 # +
 from pick_and_place_arm_sm import PickAndPlaceStateMachine
+import IPython
+
+the_image = IPython.display.Image(frame)
 
 objects_to_pick = deepcopy(world.objects)
 
 # this vector is empirically determined
-approach_vec = PyKDL.Vector(0, -0.02, -0.03)
+approach_vec = PyKDL.Vector(0, -0.01, -0.026)
 
-print(objects_to_pick)
 
 for obj in objects_to_pick:
     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
@@ -137,10 +139,14 @@ for obj in objects_to_pick:
     sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, obj, approach_vec)
     
     while not sm.is_done():
-        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam)
+        objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam)
         world = World(objects)
         sm.update_world(world)
         sm.run_once()
 
 # -
+plt.figure(figsize=(10, 5))
+plt.imshow(frame)
+
+
 
