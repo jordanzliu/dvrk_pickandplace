@@ -4,6 +4,7 @@ from enum import Enum
 import math
 from rospy import loginfo, logwarn
 import PyKDL
+import pprint
 
 # TODO: failed pickup state transition from APPROACH_DEST to APPROACH_OBJECT
 # TODO: pass entire estimated world into the run_once function 
@@ -37,8 +38,7 @@ class PickAndPlaceStateMachine:
 
 
     def _approach_object(self):
-        if self.psm.get_desired_position().p != self._obj_pos():
-            self.psm.move(self._obj_pos(), blocking=False)
+        self._set_arm_dest(self._obj_pos())
 
 
     def _approach_object_next(self):
@@ -50,8 +50,7 @@ class PickAndPlaceStateMachine:
     
 
     def _grab_object(self):
-        if self.psm.get_desired_position().p != self._obj_pos() + self.approach_vec:
-            self.psm.move(self._obj_pos() + self.approach_vec, blocking=False)
+        self._set_arm_dest(self._obj_pos() + self.approach_vec)
 
 
     def _grab_object_next(self):
@@ -75,8 +74,7 @@ class PickAndPlaceStateMachine:
 
 
     def _approach_dest(self):
-        if self.psm.get_desired_position().p != self._obj_dest():
-            self.psm.move(self._obj_dest(), blocking=False)
+        self._set_arm_dest(self._obj_dest())
 
 
     def _approach_dest_next(self):
@@ -124,9 +122,18 @@ class PickAndPlaceStateMachine:
     def _obj_dest(self):
         return self.world_to_psm_tf * self.obj_dest
 
+    def _set_arm_dest(self, dest):
+        loginfo("Setting {} dest to {}".format(self.psm.name(), dest))
+        if self.psm.get_desired_position().p != dest:
+            self.psm.move(dest, blocking=False)
+
 
     def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, closed_loop=True):
-        self.state = PickAndPlaceState.APPROACH_OBJECT
+        loginfo("PickAndPlaceStateMachine:__init__")
+        loginfo("psm: {}, world: {}, world_to_psm_tf: {}, object: {}".format(
+            psm.name(), world, world_to_psm_tf, object
+        )
+        self.state = PickAndPlaceState.OPEN_JAW
         self.psm = psm
         self.object = object
         self.world = world
@@ -170,3 +177,9 @@ class PickAndPlaceStateMachine:
     def is_done(self):
         return self.state == PickAndPlaceState.DONE
     
+
+    def __str__(self):
+        return str(self.__dict__)
+
+    def __repr__(self):
+        return str(self.__dict__)

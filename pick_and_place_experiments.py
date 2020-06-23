@@ -111,8 +111,13 @@ tf_jp21_to_world = tf_to_pykdl_frame(tf_listener.lookupTransform('world', 'Jp21_
 tf_cam_to_world = tf_jp21_to_world * tf_cam_to_jp21
 tf_cam_to_world
 
+# +
 tf_world_to_psm2_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM2', 'world', rospy.Time()))
 tf_world_to_psm2_base = PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm2_j1
+
+tf_world_to_psm1_j1 = tf_to_pykdl_frame(tf_listener.lookupTransform('J1_PSM1', 'world', rospy.Time()))
+tf_world_to_psm1_base = PSM_J1_TO_BASE_LINK_TF * tf_world_to_psm1_j1
+# -
 
 stereo_cam = image_geometry.StereoCameraModel()
 stereo_cam.fromCameraInfo(left_camera_info, right_camera_info)
@@ -123,6 +128,7 @@ world
 
 # +
 from pick_and_place_arm_sm import PickAndPlaceStateMachine
+from pick_and_place_hsm import PickAndPlaceHSM
 import IPython
 
 the_image = IPython.display.Image(frame)
@@ -132,21 +138,30 @@ objects_to_pick = deepcopy(world.objects)
 # this vector is empirically determined
 approach_vec = PyKDL.Vector(0, -0.01, -0.026)
 
+hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_j1, tf_world_to_psm2_j1], world, approach_vec)
 
-for obj in objects_to_pick:
+while not hsm.is_done():
     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
     world = World(objects)
-    sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, obj, approach_vec)
-    
-    while not sm.is_done():
-        objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam)
-        world = World(objects)
-        sm.update_world(world)
-        sm.run_once()
+    hsm.update_world(world)
+    hsm.run_once()
 
+
+# for obj in objects_to_pick:
+#     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+#     world = World(objects)
+#     sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, obj, approach_vec)
+    
+#     while not sm.is_done():
+#         objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam)
+#         world = World(objects)
+#         sm.update_world(world)
+#         sm.run_once()
 # -
 plt.figure(figsize=(10, 5))
 plt.imshow(frame)
+
+print(hsm)
 
 
 

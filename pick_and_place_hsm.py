@@ -1,7 +1,7 @@
 from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState
 from enum import Enum
 from rospy import loginfo, logwarn
-
+import pprint
 
 
 class PickAndPlaceParentState(Enum):
@@ -10,8 +10,23 @@ class PickAndPlaceParentState(Enum):
 
 class PickAndPlaceHSM:
 
+    def _get_objects_for_psms(self):
+        '''
+        Returns a dict of PSM index -> list of objects that are closest to that PSM
+        '''
+        result = dict()
+        for object in self.world.objects:
+            closest_psm_idx = self.world_to_psm_tfs.index(
+                min(self.world_to_psm_tfs, key=lambda tf : (tf.p - object.pos).Norm()))
+            
+            if closest_psm_idx not in result:
+                result[closest_psm_idx] = list()
+            
+            result[closest_psm_idx].append(object)
+
+        return result
+
     def _picking(self):
-        # TODO: this method
         for sm in self.psm_state_machines:
             if not sm.is_done():
                 sm.run_once()
@@ -23,18 +38,35 @@ class PickAndPlaceHSM:
 
         # if a child state machine is done, reset it to OPEN_JAW 
         # with an updated object
-        done_state_machines = filter(lambda sm : sm.is_done(), self.psm_state_machines)
-        for sm, obj in zip(done_state_machines, self.world.objects):
-            sm.object = obj
-            sm.state = PickAndPlaceState.OPEN_JAW
+        done_sm_idxs = filter(lambda sm_idx : self.psm_state_machines[sm_idx].is_done(), 
+                              range(len(self.psm_state_machines)))
+        psm_to_unpicked_objects_map = self._get_objects_for_psms()
+
+        for sm_idx in done_sm_idxs:
+            if sm_idx in psm_to_unpicked_objects_map:
+                # find the position of the current psm
+                psm_cur_pos = self.world_to_psm_tfs[sm_idx].Inverse() * \
+                              self.psms[sm_idx].get_current_position().p
+
+                closest_obj = min(psm_to_unpicked_objects_map[sm_idx], 
+                                  key=lambda obj: (psm_cur_pos - obj.pos).Norm())
+                print("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
+                
+                self.psm_state_machines[sm_idx].object = closest_obj
+                self.psm_state_machines[sm_idx].state = PickAndPlaceState.OPEN_JAW
 
         return PickAndPlaceParentState.PICKING
 
     def update_world(self, world):
         self.world = world
+        for psm_sm in self.psm_state_machines:
+            psm_sm.update_world(world)
 
+    def is_done(self):
+        return self.state == PickAndPlaceParentState.DONE
 
     def __init__(self, psms, world_to_psm_tfs, world, approach_vec):
+        self.world = world
         if len(world.objects) == 1:
             self.psms = [psms[0]]
             self.world_to_psm_tfs = [world_to_psm_tfs[0]]
@@ -59,13 +91,18 @@ class PickAndPlaceHSM:
 
     
     def run_once(self):
-        
         if self.state == PickAndPlaceParentState.DONE:
             return
         loginfo("Running state {}".format(self.state))
         self.state_functions[self.state]()
         self.next_functions[self.state]()
         
+
+    def __str__(self):
+        return str(self.__dict__)
+
+    def __repr__(self):
+        return str(self.__dict__)
 
 
         
