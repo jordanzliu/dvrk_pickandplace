@@ -131,8 +131,7 @@ class PickAndPlaceStateMachine:
     def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, closed_loop=True):
         loginfo("PickAndPlaceStateMachine:__init__")
         loginfo("psm: {}, world: {}, world_to_psm_tf: {}, object: {}".format(
-            psm.name(), world, world_to_psm_tf, object
-        )
+            psm.name(), world, world_to_psm_tf, object))
         self.state = PickAndPlaceState.OPEN_JAW
         self.psm = psm
         self.object = object

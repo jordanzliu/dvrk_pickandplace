@@ -138,7 +138,7 @@ objects_to_pick = deepcopy(world.objects)
 # this vector is empirically determined
 approach_vec = PyKDL.Vector(0, -0.01, -0.026)
 
-hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_j1, tf_world_to_psm2_j1], world, approach_vec)
+hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec)
 
 while not hsm.is_done():
     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
