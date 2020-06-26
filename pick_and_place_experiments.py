@@ -92,15 +92,15 @@ with debug_output:
     ecm = dvrk.ecm('ECM')
     psm2 = dvrk.psm('PSM2')
 
-HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.035, 0.0])
+HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.030, 0.0])
 # -
 
 tf_listener = tf.TransformListener()
 
-tf_listener.getFrameStrings()
-
 time.sleep(3)
 ecm.move_joint(HARDCODED_ECM_POS)
+
+tf_listener.getFrameStrings()
 
 pick_and_place_utils = None
 from pick_and_place_utils import get_objects_and_img, tf_to_pykdl_frame, PSM_J1_TO_BASE_LINK_TF, World
