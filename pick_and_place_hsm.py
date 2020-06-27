@@ -6,7 +6,8 @@ import pprint
 
 class PickAndPlaceParentState(Enum):
     PICKING = 0
-    DONE = 1
+    DROPPING = 1
+    DONE = 2
 
 class PickAndPlaceHSM:
 
@@ -63,7 +64,38 @@ class PickAndPlaceHSM:
                 self.psm_state_machines[sm_idx].object = closest_obj
                 self.psm_state_machines[sm_idx].state = PickAndPlaceState.OPEN_JAW
 
+        # if a child state machine is in the APPROACH_DEST state, we transition to the 
+        # DROPPING state
+        dropping_sm_idxs = filter(lambda sm_idx : \
+            self.psm_state_machines[sm_idx].state == PickAndPlaceState.APPROACH_DEST, 
+            range(len(self.psm_state_machines)))
+
+        if len(dropping_sm_idxs) > 0:
+            self.dropping_sm = self.psm_state_machines[dropping_sm_idxs[0]]
+
+            for sm_idx, sm in enumerate(self.psm_state_machines):
+                if sm_idx != dropping_sm_idxs[0]:
+                    sm.halt()
+
+            return PickAndPlaceParentState.DROPPING
+
         return PickAndPlaceParentState.PICKING
+
+
+    def _dropping(self):
+        if not self.dropping_sm.is_done():
+            self.dropping_sm.run_once()
+
+
+    def _dropping_next(self):
+        # TODO: state transition directly to done? maybe unnecessary since
+        # PICKING already has a transition condition to DONE
+        if self.dropping_sm.is_done():
+            self.dropping_sm = None
+            return PickAndPlaceParentState.PICKING
+        else:
+            return PickAndPlaceParentState.DROPPING
+
 
     def update_world(self, world):
         self.world = world
@@ -107,12 +139,16 @@ class PickAndPlaceHSM:
         self.state = PickAndPlaceParentState.PICKING
 
         self.state_functions = {
-            PickAndPlaceParentState.PICKING : self._picking
+            PickAndPlaceParentState.PICKING : self._picking,
+            PickAndPlaceParentState.DROPPING : self._dropping
         }
 
         self.next_functions = {
-            PickAndPlaceParentState.PICKING : self._picking_next
+            PickAndPlaceParentState.PICKING : self._picking_next,
+            PickAndPlaceParentState.DROPPING : self._dropping_next
         }
+
+        self.dropping_sm = None
 
     
     def run_once(self):
@@ -121,7 +157,7 @@ class PickAndPlaceHSM:
 
         if self.log_verbose:
             loginfo("Running state {}".format(self.state))
-            
+
         self.state_functions[self.state]()
         self.next_functions[self.state]()
         

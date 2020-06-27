@@ -184,6 +184,9 @@ class PickAndPlaceStateMachine:
     def is_done(self):
         return self.state == PickAndPlaceState.DONE
     
+    def halt(self):
+        # this sets the desired joint position to the current joint position
+        self.psm.move_joint(self.psm.get_current_joint_position(), blocking=False)
 
     def __str__(self):
         return str(self.__dict__)

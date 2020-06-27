@@ -51,7 +51,7 @@ def clamp_image_coords(pt, im_shape):
     return tuple(np.clip(pt, (0, 0), np.array(im_shape)[:2] - np.array([1, 1])))
 
 
-def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_to_world_tf=None):
+def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_to_world_tf):
     # this gets the position of the red ball thing in the camera frame
     # and the image with X's on the desired features
     fp = feature_processor(FEAT_PATHS)
@@ -61,7 +61,6 @@ def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_t
     objects = []
     for left_feat, right_feat in zip(left_feats, right_feats):
         disparity = abs(left_feat.pos[0] - right_feat.pos[0])
-        print(left_feat.pos)
         pos_cv = stereo_cam_model.projectPixelTo3d(left_feat.pos, float(disparity))
         # there's a fixed rotation to convert this to the camera coordinate frame
         pos_cam = np.matmul(CV_TO_CAM_FRAME_ROT, pos_cv)
@@ -75,7 +74,6 @@ def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_t
             rospy.loginfo("Color mismatch between left and right detection")
 
         objects.append(Object3d(pos, left_feat.type, left_feat.color))
-    print(objects)
     return objects, np.hstack((left_frame, right_frame))
 
 

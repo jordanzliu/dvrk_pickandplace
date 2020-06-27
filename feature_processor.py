@@ -37,7 +37,8 @@ class ImageFeature:
 
 class feature_processor:
 
-    def __init__(self, feature_files):
+    def __init__(self, feature_files, log_verbose=False):
+        self.log_verbose = False
         # Set hsv lower and upper limits
         self.StoreHSVRanges(feature_files)
         # Declare adjustment values to match cv2 hsv value storage
@@ -92,7 +93,8 @@ class feature_processor:
 
         # Draw a circle outline at the centre of the frame
         height, width = frame.shape[0:2]
-        rospy.loginfo("Height: " + str(height) + " Width: " + str(width))
+        if self.log_verbose:
+            rospy.loginfo("Height: " + str(height) + " Width: " + str(width))
         cv2.circle(frame, (int(width / 2), int(height / 2)),
                    radius=2, color=(0, 0, 0), thickness=1)
 
