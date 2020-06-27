@@ -23,7 +23,10 @@ class PickAndPlaceHSM:
                 result[closest_psm_idx] = list()
             
             result[closest_psm_idx].append(object)
-        loginfo("Unpicked objects: {}".format(pprint.pformat(result)))
+
+        if self.log_verbose:
+            loginfo("Unpicked objects: {}".format(pprint.pformat(result)))
+
         return result
 
     def _picking(self):
@@ -40,7 +43,9 @@ class PickAndPlaceHSM:
         # with an updated object
         done_sm_idxs = filter(lambda sm_idx : self.psm_state_machines[sm_idx].is_done(), 
                               range(len(self.psm_state_machines)))
-        loginfo("Done child sms: {}".format(done_sm_idxs))
+        if self.log_verbose:
+            loginfo("Done child sms: {}".format(done_sm_idxs))
+
         psm_to_unpicked_objects_map = self._get_objects_for_psms()
 
         for sm_idx in done_sm_idxs:
@@ -51,7 +56,9 @@ class PickAndPlaceHSM:
 
                 closest_obj = min(psm_to_unpicked_objects_map[sm_idx], 
                                   key=lambda obj: (psm_cur_pos - obj.pos).Norm())
-                print("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
+
+                if self.log_verbose:
+                    loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
                 
                 self.psm_state_machines[sm_idx].object = closest_obj
                 self.psm_state_machines[sm_idx].state = PickAndPlaceState.OPEN_JAW
@@ -66,7 +73,8 @@ class PickAndPlaceHSM:
     def is_done(self):
         return self.state == PickAndPlaceParentState.DONE
 
-    def __init__(self, psms, world_to_psm_tfs, world, approach_vec):
+    def __init__(self, psms, world_to_psm_tfs, world, approach_vec, log_verbose=False):
+        self.log_verbose = log_verbose
         self.world = world
         if len(world.objects) == 1:
             self.psms = [psms[0]]
@@ -88,7 +96,8 @@ class PickAndPlaceHSM:
 
                 closest_obj = min(psm_to_unpicked_objects_map[sm_idx], 
                                   key=lambda obj: (psm_cur_pos - obj.pos).Norm())
-                print("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
+                if self.log_verbose:
+                    loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
                 
                 self.psm_state_machines.append(
                     PickAndPlaceStateMachine(psm, self.world, world_to_psm_tf, 
@@ -109,7 +118,10 @@ class PickAndPlaceHSM:
     def run_once(self):
         if self.state == PickAndPlaceParentState.DONE:
             return
-        loginfo("Running state {}".format(self.state))
+
+        if self.log_verbose:
+            loginfo("Running state {}".format(self.state))
+            
         self.state_functions[self.state]()
         self.next_functions[self.state]()
         

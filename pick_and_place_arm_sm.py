@@ -98,14 +98,17 @@ class PickAndPlaceStateMachine:
             # object closest to original object
             closest_obj = min(self.world.objects, 
                               key=lambda obj: (obj.pos - self.object.pos).Norm())
-            loginfo("Closest object to {}: {}".format(self.object.pos, closest_obj))
+            if self.log_verbose:
+                loginfo("Closest object to {}: {}".format(self.object.pos, closest_obj))
+
             if self.closed_loop and closest_obj.color == self.object.color \
                 and (closest_obj.pos - self.object.pos).Norm() < 0.01:
                 # we didn't pick up the object, go back to APPROACH_OBJECT
                 logwarn("Failed to pick up object {}, trying again".format(self.object))
                 return PickAndPlaceState.APPROACH_OBJECT
             else:
-                loginfo("Done pick and place for object {}".format(self.object))
+                if self.log_verbose:
+                    loginfo("Done pick and place for object {}".format(self.object))
                 return PickAndPlaceState.DONE
 
         return PickAndPlaceState.DROP_OBJECT
@@ -123,15 +126,19 @@ class PickAndPlaceStateMachine:
         return self.world_to_psm_tf * self.obj_dest
 
     def _set_arm_dest(self, dest):
-        loginfo("Setting {} dest to {}".format(self.psm.name(), dest))
+        if self.log_verbose:
+            loginfo("Setting {} dest to {}".format(self.psm.name(), dest))
         if self.psm.get_desired_position().p != dest:
             self.psm.move(dest, blocking=False)
 
 
-    def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, closed_loop=True):
-        loginfo("PickAndPlaceStateMachine:__init__")
-        loginfo("psm: {}, world: {}, world_to_psm_tf: {}, object: {}".format(
-            psm.name(), world, world_to_psm_tf, object))
+    def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, 
+                 closed_loop=True, log_verbose=False):
+        self.log_verbose = log_verbose
+        if self.log_verbose:
+            loginfo("PickAndPlaceStateMachine:__init__")
+            loginfo("psm: {}, world: {}, world_to_psm_tf: {}, object: {}".format(
+                    psm.name(), world, world_to_psm_tf, object))
         self.state = PickAndPlaceState.OPEN_JAW
         self.psm = psm
         self.object = object
@@ -165,7 +172,8 @@ class PickAndPlaceStateMachine:
 
 
     def run_once(self):
-        loginfo("Running state {}".format(self.state))
+        if self.log_verbose:
+            loginfo("Running state {}".format(self.state))
         if self.is_done():
             return
         # execute the current state
