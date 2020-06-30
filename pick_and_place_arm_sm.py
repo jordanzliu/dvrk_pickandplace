@@ -20,6 +20,8 @@ class PickAndPlaceState(Enum):
 
 VECTOR_EPS = 0.005
 
+DOWN_JAW_ORIENTATION = PyKDL.Rotation.RPY(math.pi, 0, - math.pi / 2.0)
+
 def vector_eps_eq(lhs, rhs):
     return bool((lhs - rhs).Norm() < 0.005)
 
@@ -91,8 +93,8 @@ class PickAndPlaceStateMachine:
 
 
     def _drop_object_next(self):
-        # open_jaw() sets jaw to 80 deg, we check if we're open past 30 deg
-        if self.psm.get_current_jaw_position() > math.pi / 6:
+        # open_jaw() sets jaw to 80 deg, we check if we're open past 60 deg
+        if self.psm.get_current_jaw_position() > math.pi / 3:
             # jaw is open, state is done, check if we finish or go back to APPROACH_OBJECT
             
             # object closest to original object
@@ -129,7 +131,7 @@ class PickAndPlaceStateMachine:
         if self.log_verbose:
             loginfo("Setting {} dest to {}".format(self.psm.name(), dest))
         if self.psm.get_desired_position().p != dest:
-            self.psm.move(dest, blocking=False)
+            self.psm.move(PyKDL.Frame(DOWN_JAW_ORIENTATION, dest), blocking=False)
 
 
     def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, 

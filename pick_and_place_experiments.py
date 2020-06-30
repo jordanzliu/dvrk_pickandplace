@@ -92,12 +92,18 @@ with debug_output:
     ecm = dvrk.ecm('ECM')
     psm2 = dvrk.psm('PSM2')
 
-HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.030, 0.0])
+HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.020, 0.0])
+PSM_HOME_POS = np.asarray([0., 0., 0.05, 0., 0., 0.])
+
 # -
 
 tf_listener = tf.TransformListener()
 
 time.sleep(3)
+psm1.move_joint(deepcopy(PSM_HOME_POS))
+time.sleep(1)
+psm2.move_joint(deepcopy(PSM_HOME_POS))
+time.sleep(1)
 ecm.move_joint(HARDCODED_ECM_POS)
 
 tf_listener.getFrameStrings()
@@ -130,21 +136,24 @@ world
 from pick_and_place_arm_sm import PickAndPlaceStateMachine
 from pick_and_place_hsm import PickAndPlaceHSM
 import IPython
-
+from timeit import default_timer as timer
 the_image = IPython.display.Image(frame)
 
 objects_to_pick = deepcopy(world.objects)
 
 # this vector is empirically determined
-approach_vec = PyKDL.Vector(0, -0.01, -0.026)
+approach_vec = PyKDL.Vector(0, -0.01, -0.023)
 
 hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec)
 
 while not hsm.is_done():
+    cycle_start = timer()
     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
     world = World(objects)
     hsm.update_world(world)
     hsm.run_once()
+    cycle_end = timer()
+    print("One state machine update cycle took " + str(cycle_end - cycle_start))
 
 
 # for obj in objects_to_pick:
@@ -158,10 +167,5 @@ while not hsm.is_done():
 #         sm.update_world(world)
 #         sm.run_once()
 # -
-plt.figure(figsize=(10, 5))
-plt.imshow(frame)
-
-print(hsm)
-
 
 
