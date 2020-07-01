@@ -16,11 +16,14 @@ class PickAndPlaceState(Enum):
     CLOSE_JAW = 4,
     APPROACH_DEST = 5,
     DROP_OBJECT = 6,
-    DONE = 7
+    HOME = 7,
+    DONE = 8
 
 VECTOR_EPS = 0.005
 
 DOWN_JAW_ORIENTATION = PyKDL.Rotation.RPY(math.pi, 0, - math.pi / 2.0)
+
+PSM_HOME_POS = PyKDL.Vector(0., 0., -0.1)
 
 def vector_eps_eq(lhs, rhs):
     return bool((lhs - rhs).Norm() < 0.005)
@@ -111,10 +114,20 @@ class PickAndPlaceStateMachine:
             else:
                 if self.log_verbose:
                     loginfo("Done pick and place for object {}".format(self.object))
-                return PickAndPlaceState.DONE
+                return PickAndPlaceState.HOME
 
         return PickAndPlaceState.DROP_OBJECT
 
+    
+    def _home(self):
+        self._set_arm_dest(PSM_HOME_POS)
+
+    def _home_next(self):
+        if self.psm._arm__goal_reached and \
+            vector_eps_eq(self.psm.get_current_position().p, PSM_HOME_POS):
+            return PickAndPlaceState.DONE
+        else:
+            return PickAndPlaceState.HOME 
 
     def _obj_pos(self):
         return self.world_to_psm_tf * self.object.pos
@@ -157,7 +170,8 @@ class PickAndPlaceStateMachine:
             PickAndPlaceState.GRAB_OBJECT : self._grab_object, 
             PickAndPlaceState.CLOSE_JAW : self._close_jaw,
             PickAndPlaceState.APPROACH_DEST : self._approach_dest,
-            PickAndPlaceState.DROP_OBJECT : self._drop_object
+            PickAndPlaceState.DROP_OBJECT : self._drop_object,
+            PickAndPlaceState.HOME : self._home,
         }
         self.next_functions = {
             PickAndPlaceState.OPEN_JAW : self._open_jaw_next,
@@ -165,7 +179,8 @@ class PickAndPlaceStateMachine:
             PickAndPlaceState.GRAB_OBJECT : self._grab_object_next,
             PickAndPlaceState.CLOSE_JAW : self._close_jaw_next,
             PickAndPlaceState.APPROACH_DEST : self._approach_dest_next,
-            PickAndPlaceState.DROP_OBJECT : self._drop_object_next
+            PickAndPlaceState.DROP_OBJECT : self._drop_object_next,
+            PickAndPlaceState.HOME : self._home_next
         }
 
 
@@ -188,7 +203,7 @@ class PickAndPlaceStateMachine:
     
     def halt(self):
         # this sets the desired joint position to the current joint position
-        self.psm.move_joint(self.psm.get_current_joint_position(), blocking=False)
+        self.psm.move(self.psm.get_current_position(), blocking=False)
 
     def __str__(self):
         return str(self.__dict__)
