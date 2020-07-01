@@ -84,15 +84,12 @@ print(right_camera_info)
 psm1 = None 
 ecm = None
 suj = None
-debug_output = widgets.Output(layout={'border': '1px solid black'})
 
-with debug_output:
-    global psm1, ecm
-    psm1 = dvrk.psm('PSM1')
-    ecm = dvrk.ecm('ECM')
-    psm2 = dvrk.psm('PSM2')
+psm1 = dvrk.psm('PSM1')
+ecm = dvrk.ecm('ECM')
+psm2 = dvrk.psm('PSM2')
 
-HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.020, 0.0])
+HARDCODED_ECM_POS = np.array([0.0, 0.0, 0.0, 0.0])
 PSM_HOME_POS = np.asarray([0., 0., 0.05, 0., 0., 0.])
 
 # -
@@ -142,7 +139,7 @@ the_image = IPython.display.Image(frame)
 objects_to_pick = deepcopy(world.objects)
 
 # this vector is empirically determined
-approach_vec = PyKDL.Vector(0, -0.01, -0.023)
+approach_vec = PyKDL.Vector(0, -0.01, -0.026)
 
 hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec)
 
@@ -167,5 +164,7 @@ while not hsm.is_done():
 #         sm.update_world(world)
 #         sm.run_once()
 # -
+psm1.get_current_position().p
+
 
 
