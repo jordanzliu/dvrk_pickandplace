@@ -114,7 +114,7 @@ class PickAndPlaceStateMachine:
             else:
                 if self.log_verbose:
                     loginfo("Done pick and place for object {}".format(self.object))
-                return PickAndPlaceState.HOME
+                return PickAndPlaceState.DONE
 
         return PickAndPlaceState.DROP_OBJECT
 
@@ -123,11 +123,9 @@ class PickAndPlaceStateMachine:
         self._set_arm_dest(PSM_HOME_POS)
 
     def _home_next(self):
-        if self.psm._arm__goal_reached and \
-            vector_eps_eq(self.psm.get_current_position().p, PSM_HOME_POS):
-            return PickAndPlaceState.DONE
-        else:
-            return PickAndPlaceState.HOME 
+        # the home state is used for arm state machines that are completely 
+        # finished executing as determined by the parent state machine
+        return PickAndPlaceState.HOME 
 
     def _obj_pos(self):
         return self.world_to_psm_tf * self.object.pos

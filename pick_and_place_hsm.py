@@ -66,6 +66,7 @@ class PickAndPlaceHSM:
 
         # if a child state machine is in the APPROACH_DEST state, we transition to the 
         # DROPPING state
+
         dropping_sm_idxs = filter(lambda sm_idx : \
             self.psm_state_machines[sm_idx].state == PickAndPlaceState.APPROACH_DEST, 
             range(len(self.psm_state_machines)))
