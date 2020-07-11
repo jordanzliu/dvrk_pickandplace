@@ -13,9 +13,11 @@ class PickAndPlaceState(Enum):
     APPROACH_OBJECT = 2,
     GRAB_OBJECT = 3,
     CLOSE_JAW = 4,
-    APPROACH_DEST = 5,
-    DROP_OBJECT = 6,
-    DONE = 7
+    APPROACH_DEST_PSM1 = 5,
+    DROP_OBJECT_PSM1 = 6,
+    APPROACH_DEST_PSM2 = 7,
+    DROP_OBJECT_PSM2 = 8
+    DONE = 9
 
 
 VECTOR_EPS = 0.005
@@ -41,6 +43,32 @@ class PickAndPlaceDualArmStateMachine:
            self.psm2.get_current_jaw_position() < math.pi / 3:
             return PickAndPlaceState.OPEN_JAW
         else:
+            # if there are no objects left, go to DONE
+            if len(self.world.objects) == 0:
+                return PickAndPlaceState.DONE
+
+            if self.log_verbose:
+                loginfo("{} objects left".format(len(self.world.objects)))
+
+
+            # if there are objects left, assign objects to psm1/psm2
+            psm_to_object_dict = self._get_objects_for_psms()
+
+            if len(psm_to_object_dict[0]) > 0:
+                self.psm1_object = psm_to_object_dict[0][0]
+                if self.log_verbose:
+                    loginfo("PSM1 picking up " + str(self.psm1_object))
+            else:
+                self.psm1_object = None
+
+            if len(psm_to_object_dict[0]) > 0:
+                self.psm2_object = psm_to_object_dict[1][0]
+                if self.log_verbose:
+                    loginfo("PSM2 picking up " + str(self.psm2_object))
+            else:
+                self.psm2_object = None
+
+
             return PickAndPlaceState.APPROACH_OBJECT
 
 
@@ -64,14 +92,14 @@ class PickAndPlaceDualArmStateMachine:
         psm2_obj_pos = self._psm2_object_pos()
 
         if psm1_obj_pos is not None:
-            self._set_arm_dest(self.psm1, psm1_obj_pos + self.psm1_approach_vec)
+            self._set_arm_dest(self.psm1, psm1_obj_pos + self.approach_vec)
         if psm2_obj_pos is not None:
-            self._set_arm_dest(self.psm2, psm2_obj_pos + self.psm2_approach_vec)
+            self._set_arm_dest(self.psm2, psm2_obj_pos + self.approach_vec)
 
 
     def _grab_object_next(self):
-        if self._reached_dest(self.psm1, self._psm1_object_pos() + self.psm1_approach_vec) and \
-           self._reached_dest(self.psm2, self._psm2_object_pos() + self.psm2_approach_vec):
+        if self._reached_dest(self.psm1, self._psm1_object_pos() + self.approach_vec) and \
+           self._reached_dest(self.psm2, self._psm2_object_pos() + self.approach_vec):
             return PickAndPlaceState.CLOSE_JAW
         else:
             return PickAndPlaceState.GRAB_OBJECT
@@ -95,16 +123,16 @@ class PickAndPlaceDualArmStateMachine:
     def _approach_dest(self):
         if self._psm1_object_pos() is not None:
             self._set_arm_dest(self.psm1, self._obj_dest(self.psm1))
-        if self._psm1_object_pos() is not None:
+        if self._psm2_object_pos() is not None:
             self._set_arm_dest(self.psm2, self._obj_dest(self.psm2))
 
 
     def _approach_dest_next(self):
         if self._reached_dest(self.psm1, self._obj_dest(self.psm1)) and \
             self._reached_dest(self.psm2, self._obj_dest(self.psm2)):
-            return PickAndPlaceState.DROP_OBJECT
+            return PickAndPlaceState.OPEN_JAW
         else:
-            return PickAndPlaceState.OPEN_JAW          
+            return PickAndPlaceState.APPROACH_DEST          
 
 
     def _obj_dest(self, psm):
@@ -171,8 +199,10 @@ class PickAndPlaceDualArmStateMachine:
         self.psm2, self.world_to_psm2_tf = psm2_and_tf
 
         self.world = world
-        self.psm1_approach_vec = self.world_to_psm1_tf * approach_vec
-        self.psm2_approach_vec = self.world_to_psm2_tf * approach_vec
+        self.approach_vec = approach_vec
+
+        self.psm1_object = None
+        self.psm2_object = None
 
         self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.05)
         self.state_functions = {
@@ -190,19 +220,6 @@ class PickAndPlaceDualArmStateMachine:
             PickAndPlaceState.CLOSE_JAW : self._close_jaw_next,
             PickAndPlaceState.APPROACH_DEST : self._approach_dest_next,
         }
-
-        # assign objects to psm1/psm2
-        psm_to_object_dict = self._get_objects_for_psms()
-
-        if len(psm_to_object_dict[0]) > 0:
-            self.psm1_object = psm_to_object_dict[0][0]
-        else:
-            self.psm1_object = None
-
-        if len(psm_to_object_dict[0]) > 0:
-            self.psm2_object = psm_to_object_dict[1][0]
-        else:
-            self.psm2_object = None
 
 
     def update_world(self, world):
