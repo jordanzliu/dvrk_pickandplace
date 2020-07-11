@@ -1,4 +1,4 @@
-from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState
+from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState, PSM_HOME_POS, vector_eps_eq
 from enum import Enum
 from rospy import loginfo, logwarn
 import pprint
@@ -92,6 +92,28 @@ class PickAndPlaceHSM:
         # TODO: state transition directly to done? maybe unnecessary since
         # PICKING already has a transition condition to DONE
         if self.dropping_sm.is_done():
+            # check if the psm has objects left to pick up
+            psm_to_unpicked_objects_map = self._get_objects_for_psms()
+            sm_idx = self.psms.index(self.dropping_sm)
+            if sm_idx in psm_to_unpicked_objects_map:
+                # find the position of the current psm
+                psm_cur_pos = self.world_to_psm_tfs[sm_idx].Inverse() * \
+                              self.psms[sm_idx].get_current_position().p
+
+                closest_obj = min(psm_to_unpicked_objects_map[sm_idx], 
+                                  key=lambda obj: (psm_cur_pos - obj.pos).Norm())
+
+                if self.log_verbose:
+                    loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
+                
+                self.psm_state_machines[sm_idx].object = closest_obj
+                self.psm_state_machines[sm_idx].state = PickAndPlaceState.OPEN_JAW
+                return PickAndPlaceParentState.DROPPING
+            else:
+                # no objects left, set arm to home
+                self.dropping_sm.state = PickAndPlaceState.HOME
+        elif vector_eps_eq(self.dropping_sm.psm.get_current_position().p, self.dropping_sm._obj_pos()) or \
+            vector_eps_eq(self.dropping_sm.psm.get_current_position().p, self.dropping_sm._obj_pos()):
             self.dropping_sm = None
             return PickAndPlaceParentState.PICKING
         else:
