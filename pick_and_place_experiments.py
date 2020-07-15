@@ -141,15 +141,21 @@ objects_to_pick = deepcopy(world.objects)
 
 # this vector is empirically determined
 approach_vec = PyKDL.Vector(0, -0.01, -0.026)
-sm = PickAndPlaceDualArmStateMachine((psm1, tf_world_to_psm1_base), (psm2, tf_world_to_psm2_base), 
-                                     world, approach_vec, log_verbose=True)
 
+# ========================================================================================================== 
+# This runs the single FSM that runs both arms sequentially
+# ========================================================================================================== 
+sm = PickAndPlaceDualArmStateMachine([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, 
+                                    approach_vec)
 while not sm.is_done():
     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
     world = World(objects)
     sm.update_world(world)
     sm.run_once()
 
+# ========================================================================================================== 
+# This runs the hierarchical concurrent state machine that runs both arms concurrently
+# ========================================================================================================== 
 # hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec)
 
 # while not hsm.is_done():
@@ -162,6 +168,11 @@ while not sm.is_done():
 #     print("One state machine update cycle took " + str(cycle_end - cycle_start))
 
 
+
+# ========================================================================================================== 
+# This runs the single arm FSM that runs 1 arm
+# TODO: run both arms concurrently but without coordination
+# ========================================================================================================== 
 # for obj in objects_to_pick:
 #     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
 #     world = World(objects)

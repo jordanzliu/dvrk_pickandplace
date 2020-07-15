@@ -89,9 +89,9 @@ class PickAndPlaceHSM:
 
 
     def _dropping_next(self):
-        # TODO: state transition directly to done? maybe unnecessary since
-        # PICKING already has a transition condition to DONE
+        # TODO: this entire state doesn't work, the top level if case doesnt seem to ever be hit?
         if self.dropping_sm.is_done():
+            loginfo(self.dropping_sm.psm.name() + " is done dropping")
             # check if the psm has objects left to pick up
             psm_to_unpicked_objects_map = self._get_objects_for_psms()
             sm_idx = self.psms.index(self.dropping_sm)
@@ -106,14 +106,18 @@ class PickAndPlaceHSM:
                 if self.log_verbose:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
                 
+                # if there's an object to pick up, move to the next one
                 self.psm_state_machines[sm_idx].object = closest_obj
                 self.psm_state_machines[sm_idx].state = PickAndPlaceState.OPEN_JAW
-                return PickAndPlaceParentState.DROPPING
             else:
                 # no objects left, set arm to home
                 self.dropping_sm.state = PickAndPlaceState.HOME
+            return PickAndPlaceParentState.DROPPING
         elif vector_eps_eq(self.dropping_sm.psm.get_current_position().p, self.dropping_sm._obj_pos()) or \
-            vector_eps_eq(self.dropping_sm.psm.get_current_position().p, self.dropping_sm._obj_pos()):
+            vector_eps_eq(self.dropping_sm.psm.get_current_position().p, PSM_HOME_POS):
+            # if the arm is at the hardcoded home pos because we set it to HOME above,
+            # go back to picking
+            loginfo(self.dropping_sm.psm.name() + " is at next object or home, resume other arm")
             self.dropping_sm = None
             return PickAndPlaceParentState.PICKING
         else:
