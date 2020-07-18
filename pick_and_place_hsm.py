@@ -71,13 +71,19 @@ class PickAndPlaceHSM:
             self.psm_state_machines[sm_idx].state == PickAndPlaceState.APPROACH_DEST, 
             range(len(self.psm_state_machines)))
 
+        if self.log_verbose:
+            loginfo("Child sm states: {}".format([sm.state for sm in self.psm_state_machines]))
+
         if len(dropping_sm_idxs) > 0:
             self.dropping_sm = self.psm_state_machines[dropping_sm_idxs[0]]
 
             for sm_idx, sm in enumerate(self.psm_state_machines):
                 if sm_idx != dropping_sm_idxs[0]:
                     sm.halt()
-
+            
+            if self.log_verbose:
+                loginfo("Entering DROPPING state!")
+                
             return PickAndPlaceParentState.DROPPING
 
         return PickAndPlaceParentState.PICKING
@@ -89,12 +95,11 @@ class PickAndPlaceHSM:
 
 
     def _dropping_next(self):
-        # TODO: this entire state doesn't work, the top level if case doesnt seem to ever be hit?
         if self.dropping_sm.is_done():
-            loginfo(self.dropping_sm.psm.name() + " is done dropping")
+            logwarn(self.dropping_sm.psm.name() + " is done dropping")
             # check if the psm has objects left to pick up
             psm_to_unpicked_objects_map = self._get_objects_for_psms()
-            sm_idx = self.psms.index(self.dropping_sm)
+            sm_idx = self.psms.index(self.dropping_sm.psm)
             if sm_idx in psm_to_unpicked_objects_map:
                 # find the position of the current psm
                 psm_cur_pos = self.world_to_psm_tfs[sm_idx].Inverse() * \
@@ -186,7 +191,7 @@ class PickAndPlaceHSM:
             loginfo("Running state {}".format(self.state))
 
         self.state_functions[self.state]()
-        self.next_functions[self.state]()
+        self.state = self.next_functions[self.state]()
         
 
     def __str__(self):

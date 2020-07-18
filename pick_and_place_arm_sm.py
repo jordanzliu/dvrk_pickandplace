@@ -107,7 +107,7 @@ class PickAndPlaceStateMachine:
                 loginfo("Closest object to {}: {}".format(self.object.pos, closest_obj))
 
             if self.closed_loop and closest_obj.color == self.object.color \
-                and (closest_obj.pos - self.object.pos).Norm() < 0.01:
+                and (closest_obj.pos - self.object.pos).Norm() < 0.05:
                 # we didn't pick up the object, go back to APPROACH_OBJECT
                 logwarn("Failed to pick up object {}, trying again".format(self.object))
                 return PickAndPlaceState.APPROACH_OBJECT
@@ -115,8 +115,8 @@ class PickAndPlaceStateMachine:
                 if self.log_verbose:
                     loginfo("Done pick and place for object {}".format(self.object))
                 return PickAndPlaceState.DONE
-
-        return PickAndPlaceState.DROP_OBJECT
+        else:
+            return PickAndPlaceState.DROP_OBJECT
 
     
     def _home(self):

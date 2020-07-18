@@ -97,3 +97,20 @@ class World:
 
     def __repr__(self):
         return self.__str__()
+
+
+def get_objects_for_psms(objects, world_to_psm_tfs):
+    '''
+    Returns a dict of PSM index -> list of objects that are closest to that PSM
+    '''
+    result = dict()
+    for object in objects:
+        closest_psm_idx = world_to_psm_tfs.index(
+            min(world_to_psm_tfs, key=lambda tf : (tf * object.pos).Norm()))
+        
+        if closest_psm_idx not in result:
+            result[closest_psm_idx] = list()
+        
+        result[closest_psm_idx].append(object)
+
+    return result
