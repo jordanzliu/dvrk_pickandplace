@@ -5,9 +5,11 @@ import pprint
 
 
 class PickAndPlaceParentState(Enum):
-    PICKING = 0
-    DROPPING = 1
-    DONE = 2
+    PREPARING = 0
+    PICKING = 1
+    DROPPING = 2
+    DONE = 3
+
 
 class PickAndPlaceHSM:
 
@@ -30,6 +32,20 @@ class PickAndPlaceHSM:
 
         return result
 
+
+    def _preparing(self):
+        for sm in self.psm_state_machines:
+            if (not sm.is_done()) and sm.state == PickAndPlaceState.OPEN_JAW:
+                sm.run_once()
+
+
+    def _preparing_next(self):
+        if all([sm.jaw_fully_open() for sm in self.psm_state_machines]):
+            return PickAndPlaceParentState.PICKING
+        else:
+            return PickAndPlaceParentState.PREPARING
+
+
     def _picking(self):
         for sm in self.psm_state_machines:
             if not sm.is_done():
@@ -40,7 +56,7 @@ class PickAndPlaceHSM:
         if len(self.world.objects) == 0:
             return PickAndPlaceParentState.DONE
 
-        # if a child state machine is done, reset it to OPEN_JAW 
+        # if a child state machine is done, reset it to APPROACH_OBJECT 
         # with an updated object
         done_sm_idxs = filter(lambda sm_idx : self.psm_state_machines[sm_idx].is_done(), 
                               range(len(self.psm_state_machines)))
@@ -62,7 +78,7 @@ class PickAndPlaceHSM:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
                 
                 self.psm_state_machines[sm_idx].object = closest_obj
-                self.psm_state_machines[sm_idx].state = PickAndPlaceState.OPEN_JAW
+                self.psm_state_machines[sm_idx].state = PickAndPlaceState.APPROACH_OBJECT
 
         # if a child state machine is in the APPROACH_DEST state, we transition to the 
         # DROPPING state
@@ -78,7 +94,7 @@ class PickAndPlaceHSM:
             self.dropping_sm = self.psm_state_machines[dropping_sm_idxs[0]]
 
             for sm_idx, sm in enumerate(self.psm_state_machines):
-                if sm_idx != dropping_sm_idxs[0]:
+                if sm_idx != dropping_sm_idxs[0] and sm.state == PickAndPlaceState.APPROACH_DEST:
                     sm.halt()
             
             if self.log_verbose:
@@ -96,8 +112,10 @@ class PickAndPlaceHSM:
 
     def _dropping_next(self):
         if self.dropping_sm.is_done():
-            logwarn(self.dropping_sm.psm.name() + " is done dropping")
+            loginfo(self.dropping_sm.psm.name() + " is done dropping")
             # check if the psm has objects left to pick up
+            # we have to make sure that the dropping arm is moving away 
+            # from the bowl before starting the next drop
             psm_to_unpicked_objects_map = self._get_objects_for_psms()
             sm_idx = self.psms.index(self.dropping_sm.psm)
             if sm_idx in psm_to_unpicked_objects_map:
@@ -113,17 +131,12 @@ class PickAndPlaceHSM:
                 
                 # if there's an object to pick up, move to the next one
                 self.psm_state_machines[sm_idx].object = closest_obj
-                self.psm_state_machines[sm_idx].state = PickAndPlaceState.OPEN_JAW
+                self.psm_state_machines[sm_idx].state = PickAndPlaceState.APPROACH_OBJECT
             else:
                 # no objects left, set arm to home
                 self.dropping_sm.state = PickAndPlaceState.HOME
-            return PickAndPlaceParentState.DROPPING
-        elif vector_eps_eq(self.dropping_sm.psm.get_current_position().p, self.dropping_sm._obj_pos()) or \
-            vector_eps_eq(self.dropping_sm.psm.get_current_position().p, PSM_HOME_POS):
-            # if the arm is at the hardcoded home pos because we set it to HOME above,
-            # go back to picking
-            loginfo(self.dropping_sm.psm.name() + " is at next object or home, resume other arm")
             self.dropping_sm = None
+            loginfo([sm.state for sm in self.psm_state_machines])
             return PickAndPlaceParentState.PICKING
         else:
             return PickAndPlaceParentState.DROPPING

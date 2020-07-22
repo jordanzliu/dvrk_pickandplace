@@ -96,7 +96,7 @@ PSM_HOME_POS = np.asarray([0., 0., 0.05, 0., 0., 0.])
 
 tf_listener = tf.TransformListener()
 
-time.sleep(3)
+time.sleep(5)
 psm1.move_joint(deepcopy(PSM_HOME_POS))
 time.sleep(1)
 psm2.move_joint(deepcopy(PSM_HOME_POS))
@@ -158,17 +158,14 @@ approach_vec = PyKDL.Vector(0, -0.01, -0.026)
 # ========================================================================================================== 
 # This runs the hierarchical concurrent state machine that runs both arms concurrently
 # ========================================================================================================== 
-# hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
-#                       log_verbose=False)
+hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
+                      log_verbose=False)
 
-# while not hsm.is_done():
-#     cycle_start = timer()
-#     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-#     world = World(objects)
-#     hsm.update_world(world)
-#     hsm.run_once()
-#     cycle_end = timer()
-#     print("One state machine update cycle took " + str(cycle_end - cycle_start))
+while not hsm.is_done():
+    objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+    world = World(objects)
+    hsm.update_world(world)
+    hsm.run_once()
 
 
 
@@ -177,37 +174,37 @@ approach_vec = PyKDL.Vector(0, -0.01, -0.026)
 # TODO: absolutely ridiculous amount of driver code needed
 # ========================================================================================================== 
 
-objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-world = World(objects)
-original_bowl = world.bowl
+# objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+# world = World(objects)
+# original_bowl = world.bowl
 
-# assign objects to PSM1/PSM2 state machines
-psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
+# # assign objects to PSM1/PSM2 state machines
+# psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
 
-psm1_sm = None 
-psm2_sm = None
+# psm1_sm = None 
+# psm2_sm = None
 
-if 0 in psm_object_dict:
-    psm1_sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, psm_object_dict[0][0], approach_vec,
-                                      closed_loop=False)
+# if 0 in psm_object_dict:
+#     psm1_sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, psm_object_dict[0][0], approach_vec,
+#                                       closed_loop=False)
 
-if 1 in psm_object_dict:
-    psm2_sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, psm_object_dict[1][0], approach_vec,
-                                      closed_loop=False)
+# if 1 in psm_object_dict:
+#     psm2_sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, psm_object_dict[1][0], approach_vec,
+#                                       closed_loop=False)
 
-while len(world.objects) > 0:
-    objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-    world = World(objects)
-    psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
+# while len(world.objects) > 0:
+#     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+#     world = World(objects)
+#     psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
     
-    if psm1_sm is not None:
-        psm1_sm.update_world(world)
-        psm1_sm.run_once()
+#     if psm1_sm is not None:
+#         psm1_sm.update_world(world)
+#         psm1_sm.run_once()
         
-        if psm1_sm.is_done():
-            if 0 in psm_object_dict:
-                psm1_sm.object = psm_object_dict[0][0]
-                psm1_sm.state = PickAndPlaceState.OPEN_JAW
+#         if psm1_sm.is_done():
+#             if 0 in psm_object_dict:
+#                 psm1_sm.object = psm_object_dict[0][0]
+#                 psm1_sm.state = PickAndPlaceState.OPEN_JAW
         
 #     if psm2_sm is not None:
 #         psm2_sm.update_world(world)
@@ -219,6 +216,8 @@ while len(world.objects) > 0:
 #                 psm2_sm.state = PickAndPlaceState.OPEN_JAW
 # -
 psm1.get_current_position().p
+
+
 
 
 

@@ -58,8 +58,17 @@ def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_t
     left_feats, left_frame = fp.FindImageFeatures(left_image_msg)
     right_feats, right_frame = fp.FindImageFeatures(right_image_msg)
 
+    matched_feats = []
+
+    for left_feat in left_feats:
+        same_color_feats = filter(lambda right_feat: right_feat.color == left_feat.color, 
+                                  right_feats)
+        matched_feats.append((left_feat, min(same_color_feats, 
+                              key=lambda right_feat: (right_feat.pos[0] - left_feat.pos[0]) ** 2 \
+                                                      + (right_feat.pos[1] - left_feat.pos[1]) ** 2)))
+
     objects = []
-    for left_feat, right_feat in zip(left_feats, right_feats):
+    for left_feat, right_feat in matched_feats:
         disparity = abs(left_feat.pos[0] - right_feat.pos[0])
         pos_cv = stereo_cam_model.projectPixelTo3d(left_feat.pos, float(disparity))
         # there's a fixed rotation to convert this to the camera coordinate frame
@@ -82,6 +91,7 @@ def tf_to_pykdl_frame(tfl_frame):
     pos2 = PyKDL.Vector(*pos)
     rot = PyKDL.Rotation.Quaternion(*rot_quat)
     return PyKDL.Frame(rot, pos2)
+
 
 class World:
     def __init__(self, all_detections):
