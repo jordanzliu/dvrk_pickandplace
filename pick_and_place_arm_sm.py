@@ -30,7 +30,7 @@ def vector_eps_eq(lhs, rhs):
 
 class PickAndPlaceStateMachine:
     def jaw_fully_open(self):
-        return True if self.psm.get_current_jaw_position() < math.pi / 3 else False 
+        return True if self.psm.get_current_jaw_position() >= math.pi / 3 else False 
 
     def jaw_fully_closed(self):
         return True if self.psm.get_current_jaw_position() <= 0 else False

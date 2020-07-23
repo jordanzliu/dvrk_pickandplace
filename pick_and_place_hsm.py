@@ -109,6 +109,10 @@ class PickAndPlaceHSM:
         if not self.dropping_sm.is_done():
             self.dropping_sm.run_once()
 
+        for sm in self.psm_state_machines:
+            if sm != self.dropping_sm and sm.state != PickAndPlaceState.APPROACH_DEST:
+                sm.run_once()
+
 
     def _dropping_next(self):
         if self.dropping_sm.is_done():

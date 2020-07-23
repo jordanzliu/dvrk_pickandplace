@@ -10,6 +10,7 @@ from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState
 def vector_eps_eq(lhs, rhs):
     return bool((lhs - rhs).Norm() < 0.005)
 
+PSM_HOME_POS = PyKDL.Vector(0., 0., -0.1)
 
 class PickAndPlaceDualArmStateMachine:
     # this class isn't actually a state machine, but rather a way to connect 
@@ -59,7 +60,8 @@ class PickAndPlaceDualArmStateMachine:
 
 
     def run_once(self):
-        if self.current_sm.is_done():
+        if self.current_sm.is_done() and \
+            self.current_sm.psm.get_current_jaw_position() > math.pi / 3:
             objects = self._get_objects_for_psms()
             if 0 in objects:
                 self.current_sm = \
@@ -77,7 +79,7 @@ class PickAndPlaceDualArmStateMachine:
 
 
     def is_done(self):
-        return bool(len(self.world.objects) == 0)
+        return bool(len(self.world.objects) == 0) and self.current_sm.jaw_fully_open()
 
 
     def __str__(self):
