@@ -58,14 +58,36 @@ def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_t
     left_feats, left_frame = fp.FindImageFeatures(left_image_msg)
     right_feats, right_frame = fp.FindImageFeatures(right_image_msg)
 
+    # discard features with image y > bowl y
+    left_bowl = None 
+    for left_feat in left_feats:
+        if left_feat.type == FeatureType.BOWL:
+            left_bowl = left_feat
+
+    left_feats = filter(lambda feat : feat.pos[1] >= left_bowl.pos[1], left_feats)
+
+    right_bowl = None 
+    for right_feat in right_feats:
+        if right_feat.type == FeatureType.BOWL:
+            right_bowl = right_feat
+
+    right_feats = filter(lambda feat : feat.pos[1] >= right_bowl.pos[1], right_feats)
+
     matched_feats = []
 
     for left_feat in left_feats:
         same_color_feats = filter(lambda right_feat: right_feat.color == left_feat.color, 
                                   right_feats)
-        matched_feats.append((left_feat, min(same_color_feats, 
-                              key=lambda right_feat: (right_feat.pos[0] - left_feat.pos[0]) ** 2 \
-                                                      + (right_feat.pos[1] - left_feat.pos[1]) ** 2)))
+
+        if not same_color_feats:
+            rospy.logwarn(
+                "Failed to match left detection {} to a right detection!".format(left_feat))
+            continue
+
+        matched_feats.append((left_feat, 
+                              min(same_color_feats, 
+                                  key=lambda right_feat: (right_feat.pos[0] - left_feat.pos[0]) ** 2 \
+                                                       + (right_feat.pos[1] - left_feat.pos[1]) ** 2)))
 
     objects = []
     for left_feat, right_feat in matched_feats:

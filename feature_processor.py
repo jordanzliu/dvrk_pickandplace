@@ -20,6 +20,12 @@ class FeatureType(Enum):
     BOWL = 1
 
 
+def contour_centre(contour):
+    M = cv2.moments(contour)
+    x = int(M['m10'] / M['m00'])
+    y = int(M['m01'] / M['m00'])
+    return (x, y)
+
 class ImageFeature:
     def __init__(self, type, pos, color, contour):
         self.type = type
@@ -140,6 +146,7 @@ class feature_processor:
                 cv2.drawContours(frame, [c], -1, (0, 0, 0), 1)
 
                 # # Find the x and y coordinates of the centroid of the object.
+                # center = contour_centre(c)
                 center, _ = cv2.minEnclosingCircle(c)
 
                 cx = int(center[0])

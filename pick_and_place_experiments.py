@@ -141,7 +141,7 @@ the_image = IPython.display.Image(frame)
 objects_to_pick = deepcopy(world.objects)
 
 # this vector is empirically determined
-approach_vec = PyKDL.Vector(0, -0.01, -0.026)
+approach_vec = PyKDL.Vector(0.013, 0, -0.020)
 
 # ========================================================================================================== 
 # This runs the single FSM that runs both arms sequentially
@@ -160,12 +160,13 @@ approach_vec = PyKDL.Vector(0, -0.01, -0.026)
 # ========================================================================================================== 
 hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
                       log_verbose=False)
-
+frame_buffer = []
 while not hsm.is_done():
-    objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+    objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
     world = World(objects)
     hsm.update_world(world)
     hsm.run_once()
+    frame_buffer.append(frame)
 
 
 
@@ -216,8 +217,5 @@ while not hsm.is_done():
 #                 psm2_sm.state = PickAndPlaceState.OPEN_JAW
 # -
 psm1.get_current_position().p
-
-
-
 
 

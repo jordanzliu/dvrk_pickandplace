@@ -62,12 +62,12 @@ class PickAndPlaceStateMachine:
     
 
     def _grab_object(self):
-        self._set_arm_dest(self._obj_pos() + self.approach_vec)
+        self._set_arm_dest(self._obj_pos() + self._approach_vec())
 
 
     def _grab_object_next(self):
         if self.psm._arm__goal_reached and \
-            vector_eps_eq(self.psm.get_current_position().p, self._obj_pos() + self.approach_vec):
+            vector_eps_eq(self.psm.get_current_position().p, self._obj_pos() + self._approach_vec()):
             return PickAndPlaceState.CLOSE_JAW
         else:
             return PickAndPlaceState.GRAB_OBJECT
@@ -105,6 +105,10 @@ class PickAndPlaceStateMachine:
     def _drop_object_next(self):
         # open_jaw() sets jaw to 80 deg, we check if we're open past 60 deg
         if self.psm.get_current_jaw_position() > math.pi / 3:
+            # early out if this is being controlled by the parent state machine
+            if not self.closed_loop:
+                return PickAndPlaceState.DONE
+
             # jaw is open, state is done, check if we finish or go back to APPROACH_OBJECT
             
             # object closest to original object
@@ -113,7 +117,7 @@ class PickAndPlaceStateMachine:
             if self.log_verbose:
                 loginfo("Closest object to {}: {}".format(self.object.pos, closest_obj))
 
-            if self.closed_loop and closest_obj.color == self.object.color \
+            if closest_obj.color == self.object.color \
                 and (closest_obj.pos - self.object.pos).Norm() < 0.05:
                 # we didn't pick up the object, go back to APPROACH_OBJECT
                 logwarn("Failed to pick up object {}, trying again".format(self.object))
@@ -139,7 +143,7 @@ class PickAndPlaceStateMachine:
 
     
     def _approach_vec(self):
-        return self.world_to_psm_tf * self.approach_vec
+        return self.world_to_psm_tf.M * self.approach_vec
 
 
     def _obj_dest(self):
