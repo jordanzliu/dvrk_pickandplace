@@ -65,6 +65,7 @@ def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_t
             left_bowl = left_feat
 
     left_feats = filter(lambda feat : feat.pos[1] >= left_bowl.pos[1], left_feats)
+    left_feats.sort(key=lambda feat: feat.pos[1], reverse=False)
 
     right_bowl = None 
     for right_feat in right_feats:
@@ -72,6 +73,7 @@ def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_t
             right_bowl = right_feat
 
     right_feats = filter(lambda feat : feat.pos[1] >= right_bowl.pos[1], right_feats)
+    right_feats.sort(key=lambda feat: feat.pos[1], reverse=False)
 
     matched_feats = []
 
