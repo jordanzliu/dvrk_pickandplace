@@ -108,24 +108,15 @@ class PickAndPlaceStateMachine:
             # early out if this is being controlled by the parent state machine
             if not self.closed_loop:
                 return PickAndPlaceState.DONE
-
-            # jaw is open, state is done, check if we finish or go back to APPROACH_OBJECT
-            
-            # object closest to original object
-            closest_obj = min(self.world.objects, 
-                              key=lambda obj: (obj.pos - self.object.pos).Norm())
-            if self.log_verbose:
-                loginfo("Closest object to {}: {}".format(self.object.pos, closest_obj))
-
-            if closest_obj.color == self.object.color \
-                and (closest_obj.pos - self.object.pos).Norm() < 0.05:
-                # we didn't pick up the object, go back to APPROACH_OBJECT
-                logwarn("Failed to pick up object {}, trying again".format(self.object))
+            elif len(self.world.objects) > 0:
+                # there are objects left, find one and go to APPROACH_OBJECT
+                closest_object = min(self.world.objects,
+                    key=lambda obj : (self.world_to_psm_tf * obj.pos \
+                                      - self.psm.get_current_position().p).Norm())
+                self.object = closest_object
                 return PickAndPlaceState.APPROACH_OBJECT
             else:
-                if self.log_verbose:
-                    loginfo("Done pick and place for object {}".format(self.object))
-                return PickAndPlaceState.DONE
+                return PickAndPlaceState.HOME
         else:
             return PickAndPlaceState.DROP_OBJECT
 
@@ -157,7 +148,7 @@ class PickAndPlaceStateMachine:
 
 
     def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, 
-                 closed_loop=True, log_verbose=False):
+                 closed_loop=False, use_down_facing_jaw=True, log_verbose=False):
         self.log_verbose = log_verbose
         if self.log_verbose:
             loginfo("PickAndPlaceStateMachine:__init__")
@@ -165,9 +156,16 @@ class PickAndPlaceStateMachine:
                     psm.name(), world, world_to_psm_tf, object))
         self.state = PickAndPlaceState.OPEN_JAW
         self.psm = psm
-        self.object = object
         self.world = world
         self.world_to_psm_tf = world_to_psm_tf
+
+        if object is not None:
+            self.object = object
+        else:
+            self.object = min(self.world.objects,
+                              key=lambda obj : (self.world_to_psm_tf * obj.pos \
+                                - self.psm.get_current_position().p).Norm())
+
         self.approach_vec = approach_vec
         # if this is False, we don't check if we successfully picked up the object
         # and go straight to the done state
