@@ -1,4 +1,5 @@
 from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState, PSM_HOME_POS, vector_eps_eq
+from copy import deepcopy, copy
 from enum import Enum
 from rospy import loginfo, logwarn
 import pprint
@@ -13,23 +14,32 @@ class PickAndPlaceParentState(Enum):
 
 class PickAndPlaceHSM:
 
-    def _get_objects_for_psms(self):
+    def _get_psm_object_assignments(self):
         '''
-        Returns a dict of PSM index -> list of objects that are closest to that PSM
+        Returns a dict of psm idx's-> the object they are assigned to pick up
         '''
+        if len(self.world.objects) == 0:
+            loginfo("No objects!")
+            return dict()
+
         result = dict()
-        for object in self.world.objects:
-            closest_psm_idx = self.world_to_psm_tfs.index(
-                min(self.world_to_psm_tfs, key=lambda tf : (tf * object.pos).Norm()))
-            
-            if closest_psm_idx not in result:
-                result[closest_psm_idx] = list()
-            
-            result[closest_psm_idx].append(object)
 
-        if self.log_verbose:
-            loginfo("Unpicked objects: {}".format(pprint.pformat(result)))
+        if len(self.world.objects) == 0:
+            return dict()
 
+        # this spaghetti code means this class doesnt work for >2 arms anymore
+        objects = [obj for obj in self.world.objects]
+        # sort objects by distance to PSM1 base frame
+        objects.sort(key=lambda obj: (self.world_to_psm_tfs[0] * obj.pos).Norm())
+        psm1_object_count = len(self.world.objects) // 2
+        result[0] = objects[0]
+
+        if len(self.world.objects) > 1:
+            objects.sort(key=lambda obj: (self.world_to_psm_tfs[1] * obj.pos).Norm())
+            result[1] = objects[0]
+        
+        if self.log_verbose: 
+            loginfo("Closest object map: {}".format(result))
         return result
 
 
@@ -63,16 +73,11 @@ class PickAndPlaceHSM:
         if self.log_verbose:
             loginfo("Done child sms: {}".format(done_sm_idxs))
 
-        psm_to_unpicked_objects_map = self._get_objects_for_psms()
+        psm_to_closest_object_map = self._get_psm_object_assignments()
 
         for sm_idx in done_sm_idxs:
-            if sm_idx in psm_to_unpicked_objects_map:
-                # find the position of the current psm
-                psm_cur_pos = self.world_to_psm_tfs[sm_idx].Inverse() * \
-                              self.psms[sm_idx].get_current_position().p
-
-                closest_obj = min(psm_to_unpicked_objects_map[sm_idx], 
-                                  key=lambda obj: (psm_cur_pos - obj.pos).Norm())
+            if sm_idx in psm_to_closest_object_map:
+                closest_obj = psm_to_closest_object_map[sm_idx]
 
                 if self.log_verbose:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
@@ -120,16 +125,10 @@ class PickAndPlaceHSM:
             # check if the psm has objects left to pick up
             # we have to make sure that the dropping arm is moving away 
             # from the bowl before starting the next drop
-            psm_to_unpicked_objects_map = self._get_objects_for_psms()
+            psm_to_closest_object_map = self._get_psm_object_assignments()
             sm_idx = self.psms.index(self.dropping_sm.psm)
-            if sm_idx in psm_to_unpicked_objects_map:
-                # find the position of the current psm
-                psm_cur_pos = self.world_to_psm_tfs[sm_idx].Inverse() * \
-                              self.psms[sm_idx].get_current_position().p
-
-                closest_obj = min(psm_to_unpicked_objects_map[sm_idx], 
-                                  key=lambda obj: (psm_cur_pos - obj.pos).Norm())
-
+            if sm_idx in psm_to_closest_object_map:
+                closest_obj = psm_to_closest_object_map[sm_idx]
                 if self.log_verbose:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
                 
@@ -168,15 +167,10 @@ class PickAndPlaceHSM:
 
         # this is a copypaste from _picking_next
         # TODO: reduce code duplication (that's the whole point of having an HSM)
-        psm_to_unpicked_objects_map = self._get_objects_for_psms()
+        psm_to_closest_object_map = self._get_psm_object_assignments()
         for sm_idx, (psm, world_to_psm_tf) in enumerate(zip(self.psms, self.world_to_psm_tfs)):
-            if sm_idx in psm_to_unpicked_objects_map:
-                # find the position of the current psm
-                psm_cur_pos = self.world_to_psm_tfs[sm_idx].Inverse() * \
-                              self.psms[sm_idx].get_current_position().p
-
-                closest_obj = min(psm_to_unpicked_objects_map[sm_idx], 
-                                  key=lambda obj: (psm_cur_pos - obj.pos).Norm())
+            if sm_idx in psm_to_closest_object_map:
+                closest_obj = psm_to_closest_object_map[sm_idx]
                 if self.log_verbose:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
                 
