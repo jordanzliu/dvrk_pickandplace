@@ -4,11 +4,9 @@ import math
 from rospy import loginfo, logwarn
 import PyKDL
 import pprint
-from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState
+import time
+from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState, PSM_HOME_POS, vector_eps_eq
 
-
-def vector_eps_eq(lhs, rhs):
-    return bool((lhs - rhs).Norm() < 0.005)
 
 PSM_HOME_POS = PyKDL.Vector(0., 0., -0.1)
 
@@ -48,7 +46,8 @@ class PickAndPlaceDualArmStateMachine:
         if 0 in psm_to_objects_map:
             self.current_sm = PickAndPlaceStateMachine(self.psms[0], self.world,
                                                     self.world_to_psm_tfs[0], psm_to_objects_map[0][0],
-                                                    approach_vec, closed_loop=False)
+                                                    approach_vec, closed_loop=False, 
+                                                    home_when_done=bool(len(psm_to_objects_map[0]) <= 1))
         elif 1 in psm_to_objects_map:
             self.current_sm = PickAndPlaceStateMachine(self.psms[1], self.world,
                                                     self.world_to_psm_tfs[1], psm_to_objects_map[1][0],
@@ -64,15 +63,27 @@ class PickAndPlaceDualArmStateMachine:
             self.current_sm.psm.get_current_jaw_position() > math.pi / 3:
             objects = self._get_objects_for_psms()
             if 0 in objects:
+                print(len(objects[0]))
                 self.current_sm = \
                     PickAndPlaceStateMachine(self.psms[0], self.world,
                                             self.world_to_psm_tfs[0], objects[0][0],
-                                            self.approach_vec, closed_loop=False)
+                                            self.approach_vec, closed_loop=False, home_when_done=False)
             elif 1 in objects:
+                if self.current_sm.psm == self.psms[0]:
+                    # go home
+                    self.current_sm.state = PickAndPlaceState.HOME
+                    if not self.current_sm.is_done():
+                        self.current_sm.run_once()
+
+                    # this state check is here because i want to sleep
+                    while not vector_eps_eq(self.psms[0].get_current_position().p, PSM_HOME_POS):
+                        # spaghetti code
+                        time.sleep(0.1)
+
                 self.current_sm = \
                     PickAndPlaceStateMachine(self.psms[1], self.world,
                                             self.world_to_psm_tfs[1], objects[1][0],
-                                            self.approach_vec, closed_loop=False)
+                                            self.approach_vec, closed_loop=False, home_when_done=False)
 
         if not self.current_sm.is_done():
             self.current_sm.run_once()

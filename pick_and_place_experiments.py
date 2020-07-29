@@ -146,25 +146,25 @@ approach_vec = PyKDL.Vector(0.007, 0, -0.015)
 # ========================================================================================================== 
 # This runs the single FSM that runs both arms sequentially
 # ========================================================================================================== 
-# sm = PickAndPlaceDualArmStateMachine([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, 
-#                                     approach_vec)
-# while not sm.is_done():
-#     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-#     world = World(objects)
-#     sm.update_world(world)
-#     sm.run_once()
+sm = PickAndPlaceDualArmStateMachine([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, 
+                                    approach_vec)
+while not sm.is_done():
+    objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+    world = World(objects)
+    sm.update_world(world)
+    sm.run_once()
 
 
 # ========================================================================================================== 
 # This runs the hierarchical concurrent state machine that runs both arms concurrently
 # ========================================================================================================== 
-hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
-                      log_verbose=True)
-while not hsm.is_done():
-    objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-    world = World(objects)
-    hsm.update_world(world)
-    hsm.run_once()
+# hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
+#                       log_verbose=True)
+# while not hsm.is_done():
+#     objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+#     world = World(objects)
+#     hsm.update_world(world)
+#     hsm.run_once()
 
 
 

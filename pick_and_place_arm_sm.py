@@ -107,7 +107,10 @@ class PickAndPlaceStateMachine:
         if self.psm.get_current_jaw_position() > math.pi / 3:
             # early out if this is being controlled by the parent state machine
             if not self.closed_loop:
-                return PickAndPlaceState.DONE
+                if self.home_when_done:
+                    return PickAndPlaceState.HOME
+                else:
+                    return PickAndPlaceState.DONE
             elif len(self.world.objects) > 0:
                 # there are objects left, find one and go to APPROACH_OBJECT
                 closest_object = min(self.world.objects,
@@ -148,12 +151,14 @@ class PickAndPlaceStateMachine:
 
 
     def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, 
-                 closed_loop=False, use_down_facing_jaw=True, log_verbose=False):
+                 closed_loop=False, use_down_facing_jaw=True, home_when_done=False, log_verbose=False):
         self.log_verbose = log_verbose
+        self.home_when_done = home_when_done
         if self.log_verbose:
             loginfo("PickAndPlaceStateMachine:__init__")
             loginfo("psm: {}, world: {}, world_to_psm_tf: {}, object: {}".format(
                     psm.name(), world, world_to_psm_tf, object))
+            loginfo("home_when_done: {}".format(self.home_when_done))
         self.state = PickAndPlaceState.OPEN_JAW
         self.psm = psm
         self.world = world
@@ -206,7 +211,10 @@ class PickAndPlaceStateMachine:
         self.state = self.next_functions[self.state]()
 
     def is_done(self):
-        return self.state == PickAndPlaceState.DONE
+        if self.home_when_done:
+            return self.state == PickAndPlaceState.HOME and vector_eps_eq(self.psm.get_current_position().p, PSM_HOME_POS) 
+        else:
+            return self.state == PickAndPlaceState.DONE
     
     def halt(self):
         # this sets the desired joint position to the current joint position
