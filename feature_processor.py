@@ -165,8 +165,8 @@ class feature_processor:
         cv2.drawContours(frame, [bowl.contour], -1, (0, 255, 0), thickness=3)
 
         # remove features that are already in the bowl 
-        features = filter(lambda feat : 
-                        cv2.pointPolygonTest(bowl.contour, feat.pos, measureDist=False) < 0, 
+        center, radius = cv2.minEnclosingCircle(bowl.contour)
+        features = filter(lambda feat : np.linalg.norm(np.subtract(center, feat.pos)) >= radius, 
                     features)
 
         # spaghetti code

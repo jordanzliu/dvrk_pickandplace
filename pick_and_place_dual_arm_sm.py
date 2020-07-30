@@ -42,7 +42,7 @@ class PickAndPlaceDualArmStateMachine:
         self.approach_vec = approach_vec
         # get objects for psms
         psm_to_objects_map = self._get_objects_for_psms()
-
+        print(psm_to_objects_map)
         if 0 in psm_to_objects_map:
             self.current_sm = PickAndPlaceStateMachine(self.psms[0], self.world,
                                                     self.world_to_psm_tfs[0], psm_to_objects_map[0][0],
