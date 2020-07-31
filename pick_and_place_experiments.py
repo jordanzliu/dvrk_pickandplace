@@ -158,13 +158,13 @@ approach_vec = PyKDL.Vector(0.007, 0, -0.015)
 # ========================================================================================================== 
 # This runs the hierarchical concurrent state machine that runs both arms concurrently
 # ========================================================================================================== 
-hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
-                      log_verbose=True)
-while not hsm.is_done():
-    objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-    world = World(objects)
-    hsm.update_world(world)
-    hsm.run_once()
+# hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
+#                       log_verbose=True)
+# while not hsm.is_done():
+#     objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+#     world = World(objects)
+#     hsm.update_world(world)
+#     hsm.run_once()
 
 
 
@@ -173,47 +173,28 @@ while not hsm.is_done():
 # TODO: absolutely ridiculous amount of driver code needed
 # ========================================================================================================== 
 
-# objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-# world = World(objects)
-# original_bowl = world.bowl
+objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+world = World(objects)
+original_bowl = world.bowl
 
-# # assign objects to PSM1/PSM2 state machines
-# psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
+# assign objects to PSM1/PSM2 state machines
+psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
 
-# psm1_sm = None 
-# psm2_sm = None
 
-# if 0 in psm_object_dict:
-#     psm1_sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, psm_object_dict[0][0], approach_vec,
-#                                       closed_loop=False)
+psm1_sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, None, approach_vec,
+                                  closed_loop=True)
 
-# if 1 in psm_object_dict:
-#     psm2_sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, psm_object_dict[1][0], approach_vec,
-#                                       closed_loop=False)
+psm2_sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, None, approach_vec,
+                                  closed_loop=True)
 
-# while len(world.objects) > 0:
-#     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-#     world = World(objects)
-#     psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
+while not psm1_sm.is_done() and not psm2_sm.is_done():
+    objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+    world = World(objects)
+    psm1_sm.update_world(world)
+    psm2_sm.update_world(world)
+    psm1_sm.run_once()
+    psm2_sm.run_once()
     
-#     if psm1_sm is not None:
-#         psm1_sm.update_world(world)
-#         psm1_sm.run_once()
-        
-#         if psm1_sm.is_done():
-#             if 0 in psm_object_dict:
-#                 psm1_sm.object = psm_object_dict[0][0]
-#                 psm1_sm.state = PickAndPlaceState.OPEN_JAW
-        
-#     if psm2_sm is not None:
-#         psm2_sm.update_world(world)
-#         psm2_sm.run_once()
-        
-#         if psm2_sm.is_done():
-#             if 1 in psm_object_dict:
-#                 psm2_sm.object = psm_object_dict[1][0]
-#                 psm2_sm.state = PickAndPlaceState.OPEN_JAW
-
 # ========================================================================================================== 
 # Runs 1 FSM
 # ========================================================================================================== 
