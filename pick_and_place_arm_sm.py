@@ -111,11 +111,19 @@ class PickAndPlaceStateMachine:
                     return PickAndPlaceState.HOME
                 else:
                     return PickAndPlaceState.DONE
+
             elif len(self.world.objects) > 0:
                 # there are objects left, find one and go to APPROACH_OBJECT
-                closest_object = min(self.world.objects,
-                    key=lambda obj : (self.world_to_psm_tf * obj.pos \
-                                      - self.psm.get_current_position().p).Norm())
+                closest_object = None
+                if self.pick_closest_to_base_frame:
+                    # closest object to base frame
+                    closest_object = min(self.world.objects,
+                                        key=lambda obj : (self.world_to_psm_tf * obj.pos).Norm())
+                else:
+                    # closest object to current position, only if we're running 
+                    closest_object = min(self.world.objects,
+                                        key=lambda obj : (self.world_to_psm_tf * obj.pos \
+                                                        - self.psm.get_current_position().p).Norm())
                 self.object = closest_object
                 return PickAndPlaceState.APPROACH_OBJECT
             else:
@@ -151,9 +159,11 @@ class PickAndPlaceStateMachine:
 
 
     def __init__(self, psm, world, world_to_psm_tf, object, approach_vec, 
-                 closed_loop=False, use_down_facing_jaw=True, home_when_done=False, log_verbose=False):
+                 closed_loop=False, use_down_facing_jaw=True, home_when_done=False, pick_closest_to_base_frame=False, 
+                 log_verbose=False):
         self.log_verbose = log_verbose
         self.home_when_done = home_when_done
+        self.pick_closest_to_base_frame = pick_closest_to_base_frame
         if self.log_verbose:
             loginfo("PickAndPlaceStateMachine:__init__")
             loginfo("psm: {}, world: {}, world_to_psm_tf: {}, object: {}".format(
@@ -175,7 +185,7 @@ class PickAndPlaceStateMachine:
         # if this is False, we don't check if we successfully picked up the object
         # and go straight to the done state
         self.closed_loop = closed_loop
-        self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.02)
+        self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.03)
         self.state_functions = {
             PickAndPlaceState.OPEN_JAW : self._open_jaw,
             PickAndPlaceState.APPROACH_OBJECT : self._approach_object,
