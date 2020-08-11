@@ -2,6 +2,7 @@ from pick_and_place_arm_sm import PickAndPlaceStateMachine, PickAndPlaceState, P
 from copy import deepcopy, copy
 from enum import Enum
 from rospy import loginfo, logwarn
+import numpy as np
 import pprint
 
 
@@ -29,17 +30,24 @@ class PickAndPlaceHSM:
 
         # this spaghetti code means this class doesnt work for >2 arms anymore
         objects = [obj for obj in self.world.objects]
-        # sort objects by distance to PSM1 base frame
-        objects.sort(key=lambda obj: (self.world_to_psm_tfs[0] * obj.pos).Norm())
-        psm1_object_count = len(self.world.objects) // 2
-        result[0] = objects[0]
+        # PSM1 is on the +y side
+        psm1_objects = filter(lambda obj: obj.pos.y() < self.median_object_y, objects)
+        psm2_objects = filter(lambda obj: obj.pos.y() >= self.median_object_y, objects)
 
-        if len(self.world.objects) > 1:
-            objects.sort(key=lambda obj: (self.world_to_psm_tfs[1] * obj.pos).Norm())
-            result[1] = objects[0]
-        
-        if self.log_verbose: 
-            loginfo("Closest object map: {}".format(result))
+        if self.log_verbose:
+            loginfo("PSM1 objects left: {}, PSM2 objects left: {}".format(len(psm1_objects), len(psm2_objects)))
+        result = dict()
+
+        if psm1_objects:
+            result[0] = min(psm1_objects, 
+                            key=lambda obj: (self.psms[0].get_current_position().p \
+                                                - (self.world_to_psm_tfs[0] * obj.pos)).Norm())
+
+        if psm2_objects:
+            result[1] = min(psm2_objects, 
+                            key=lambda obj: (self.psms[1].get_current_position().p \
+                                                - (self.world_to_psm_tfs[1] * obj.pos)).Norm())    
+
         return result
 
 
@@ -164,6 +172,11 @@ class PickAndPlaceHSM:
             self.world_to_psm_tfs = world_to_psm_tfs
 
         self.psm_state_machines = list()
+
+        # find the median object y-position while all the objects are on the table
+        # to do object assignment robustly
+        self.median_object_y = np.median([obj.pos.y() for obj in self.world.objects])
+        print("Median object y-position: {}".format(self.median_object_y))
 
         # this is a copypaste from _picking_next
         # TODO: reduce code duplication (that's the whole point of having an HSM)
