@@ -136,6 +136,7 @@ from pick_and_place_dual_arm_sm import PickAndPlaceDualArmStateMachine
 import IPython
 from timeit import default_timer as timer
 from pick_and_place_utils import get_objects_for_psms
+from enum import Enum
 the_image = IPython.display.Image(frame)
 
 objects_to_pick = deepcopy(world.objects)
@@ -143,79 +144,89 @@ objects_to_pick = deepcopy(world.objects)
 # this vector is empirically determined
 approach_vec = PyKDL.Vector(0.007, 0, -0.015)
 
-# ========================================================================================================== 
-# This runs the single FSM that runs both arms sequentially
-# ========================================================================================================== 
-sm = PickAndPlaceDualArmStateMachine([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, 
-                                    approach_vec)
-while not sm.is_done():
+class TaskType(Enum):
+    OneArmFSM = 0
+    TwoArmFSM = 1
+    TwoIndependentFSM = 2
+    HCFSM = 3
+
+    
+# change this line to change which task is run
+task_type = TaskType.TwoArmFSM
+
+
+start_time = time.clock()
+if task_type == TaskType.OneArmFSM:
+    # ========================================================================================================== 
+    # Runs 1 FSM
+    # ========================================================================================================== 
+    sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, None, approach_vec, closed_loop=True)
+
+
+    while not (sm.is_done() or sm.state == PickAndPlaceState.HOME):
+        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+        world = World(objects)
+        sm.update_world(world)
+        sm.run_once()
+        
+elif task_type == TaskType.TwoArmFSM:
+    # ========================================================================================================== 
+    # This runs the single FSM that runs both arms sequentially
+    # ========================================================================================================== 
+    sm = PickAndPlaceDualArmStateMachine([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, 
+                                        approach_vec)
+    while not sm.is_done():
+        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+        world = World(objects)
+        sm.update_world(world)
+        sm.run_once()
+        
+elif task_type == TaskType.TwoIndependentFSM:
+    # ========================================================================================================== 
+    # Runs 2 independent FSMs, one for each arm
+    # ========================================================================================================== 
+
     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
     world = World(objects)
-    sm.update_world(world)
-    sm.run_once()
+    original_bowl = world.bowl
+
+    # assign objects to PSM1/PSM2 state machines
+    psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
 
 
-# ========================================================================================================== 
-# This runs the hierarchical concurrent state machine that runs both arms concurrently
-# ========================================================================================================== 
-# hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
-#                       log_verbose=True)
+    psm1_sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, None, approach_vec,
+                                      closed_loop=True, pick_closest_to_base_frame=True)
 
-# start_time = time.clock()
-# while not hsm.is_done():
-#     objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-#     world = World(objects)
-#     hsm.update_world(world)
-#     hsm.run_once()
-# end_time = time.clock()
-# print("Took {} seconds".format(end_time - start_time))
+    psm2_sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, None, approach_vec,
+                                      closed_loop=True, pick_closest_to_base_frame=True)
 
-# ========================================================================================================== 
-# Runs 2 independent FSMs, one for each arm
-# TODO: absolutely ridiculous amount of driver code needed
-# ========================================================================================================== 
+    while not (psm1_sm.is_done() or psm1_sm.state == PickAndPlaceState.HOME) and \
+        not (psm2_sm.is_done() or psm2_sm.state == PickAndPlaceState.HOME):
+        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+        world = World(objects)
+        psm1_sm.update_world(world)
+        psm2_sm.update_world(world)
+        psm1_sm.run_once()
+        psm2_sm.run_once()
+elif task_type == TaskType.HCFSM:
+    # ========================================================================================================== 
+    # This runs the hierarchical concurrent state machine that runs both arms concurrently
+    # ========================================================================================================== 
+    hsm = PickAndPlaceHSM([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, approach_vec, 
+                          log_verbose=False)
 
-# objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-# world = World(objects)
-# original_bowl = world.bowl
-
-# # assign objects to PSM1/PSM2 state machines
-# psm_object_dict = get_objects_for_psms(world.objects, [tf_world_to_psm1_base, tf_world_to_psm2_base])
-
-
-# psm1_sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, None, approach_vec,
-#                                   closed_loop=True, pick_closest_to_base_frame=True)
-
-# psm2_sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, None, approach_vec,
-#                                   closed_loop=True, pick_closest_to_base_frame=True)
-
-# while not (psm1_sm.is_done() or psm1_sm.state == PickAndPlaceState.HOME) and \
-#     not (psm2_sm.is_done() or psm2_sm.state == PickAndPlaceState.HOME):
-#     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-#     world = World(objects)
-#     psm1_sm.update_world(world)
-#     psm2_sm.update_world(world)
-#     psm1_sm.run_once()
-#     psm2_sm.run_once()
+    while not hsm.is_done():
+        objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+        world = World(objects)
+        hsm.update_world(world)
+        hsm.run_once()
     
-# ========================================================================================================== 
-# Runs 1 FSM
-# ========================================================================================================== 
-# sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, None, approach_vec, closed_loop=True)
-
-# start_time = time.clock()
-
-# while not (sm.is_done() or sm.state == PickAndPlaceState.HOME):
-#     objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
-#     world = World(objects)
-#     sm.update_world(world)
-#     sm.run_once()
-    
-# end_time = time.clock()
-# print("Took {} seconds".format(end_time - start_time))
+completion_time = time.clock()
+print("Task took {} seconds".format(completion_time - start_time))
 # -
-psm1.get_current_position().p
+psm1.move_joint(np.asarray([0., 0., 0.08, 0., 0., 0.]))
+psm2.move_joint(np.asarray([0., 0., 0.08, 0., 0., 0.]))
 
-psm2.get_current_jaw_position()
+
 
 

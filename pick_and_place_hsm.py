@@ -35,7 +35,7 @@ class PickAndPlaceHSM:
         psm2_objects = filter(lambda obj: obj.pos.y() >= self.median_object_y, objects)
 
         if self.log_verbose:
-            loginfo("PSM1 objects left: {}, PSM2 objects left: {}".format(len(psm1_objects), len(psm2_objects)))
+            loginfo("PSM1 objects left: {}, PSM2 objects left: {}".format(psm1_objects, psm2_objects))
         result = dict()
 
         if psm1_objects:
