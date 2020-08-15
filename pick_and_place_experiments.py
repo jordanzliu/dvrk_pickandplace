@@ -152,19 +152,18 @@ class TaskType(Enum):
 
     
 # change this line to change which task is run
-task_type = TaskType.TwoArmFSM
+task_type = TaskType.OneArmFSM
 
 
-start_time = time.clock()
+start_time = time.time()
 if task_type == TaskType.OneArmFSM:
     # ========================================================================================================== 
     # Runs 1 FSM
     # ========================================================================================================== 
     sm = PickAndPlaceStateMachine(psm1, world, tf_world_to_psm1_base, None, approach_vec, closed_loop=True)
 
-
     while not (sm.is_done() or sm.state == PickAndPlaceState.HOME):
-        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+        objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
         world = World(objects)
         sm.update_world(world)
         sm.run_once()
@@ -175,8 +174,9 @@ elif task_type == TaskType.TwoArmFSM:
     # ========================================================================================================== 
     sm = PickAndPlaceDualArmStateMachine([psm1, psm2], [tf_world_to_psm1_base, tf_world_to_psm2_base], world, 
                                         approach_vec)
+    
     while not sm.is_done():
-        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+        objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
         world = World(objects)
         sm.update_world(world)
         sm.run_once()
@@ -186,7 +186,7 @@ elif task_type == TaskType.TwoIndependentFSM:
     # Runs 2 independent FSMs, one for each arm
     # ========================================================================================================== 
 
-    objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+    objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
     world = World(objects)
     original_bowl = world.bowl
 
@@ -200,9 +200,11 @@ elif task_type == TaskType.TwoIndependentFSM:
     psm2_sm = PickAndPlaceStateMachine(psm2, world, tf_world_to_psm2_base, None, approach_vec,
                                       closed_loop=True, pick_closest_to_base_frame=True)
 
-    while not (psm1_sm.is_done() or psm1_sm.state == PickAndPlaceState.HOME) and \
-        not (psm2_sm.is_done() or psm2_sm.state == PickAndPlaceState.HOME):
-        objects, _ = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
+    # because we exit out of the loop as soon as both arms are in the HOME state 
+    # (i.e. they have began to move to the home position), the end time is exactly the first 'tick' after
+    # the last arm has opened its gripper past 60 degrees
+    while (psm1_sm.state != PickAndPlaceState.HOME) or (psm2_sm.state != PickAndPlaceState.HOME):
+        objects, frame = get_objects_and_img(left_image_msg, right_image_msg, stereo_cam, tf_cam_to_world)
         world = World(objects)
         psm1_sm.update_world(world)
         psm2_sm.update_world(world)
@@ -221,12 +223,16 @@ elif task_type == TaskType.HCFSM:
         hsm.update_world(world)
         hsm.run_once()
     
-completion_time = time.clock()
+completion_time = time.time()
 print("Task took {} seconds".format(completion_time - start_time))
 # -
+time.sleep(1)
 psm1.move_joint(np.asarray([0., 0., 0.08, 0., 0., 0.]))
 psm2.move_joint(np.asarray([0., 0., 0.08, 0., 0., 0.]))
 
+plt.figure(figsize=(10, 5))
+plt.imshow(frame)
 
+time.time()
 
 

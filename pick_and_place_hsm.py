@@ -192,14 +192,16 @@ class PickAndPlaceHSM:
                                              closest_obj, approach_vec, closed_loop=False)
                 )
 
-        self.state = PickAndPlaceParentState.PICKING
+        self.state = PickAndPlaceParentState.PREPARING
 
         self.state_functions = {
+            PickAndPlaceParentState.PREPARING : self._preparing,
             PickAndPlaceParentState.PICKING : self._picking,
             PickAndPlaceParentState.DROPPING : self._dropping
         }
 
         self.next_functions = {
+            PickAndPlaceParentState.PREPARING : self._preparing_next,
             PickAndPlaceParentState.PICKING : self._picking_next,
             PickAndPlaceParentState.DROPPING : self._dropping_next
         }
