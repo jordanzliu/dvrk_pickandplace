@@ -9,6 +9,26 @@
       args="-j $(find saw_intuitive_research_kit)/../share/console-full-cart-simulated.json"                     
       output="screen"/>
 
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM1_RCM" args="0 0 0 0 0 0 simworld PSM1_RCM 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM1_base" args="0 0 0 0 0 0 PSM1_RCM PSM1_base 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM1" args="0 0 0 0 0 0 PSM1_base PSM1 20" />
+
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM2_RCM" args="0 0 0 0 0 0 simworld PSM2_RCM 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM2_base" args="0 0 0 0 0 0 PSM2_RCM PSM2_base 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM2" args="0 0 0 0 0 0 PSM2_base PSM2 20" />
+
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM3_RCM" args="0 0 0 0 0 0 simworld PSM3_RCM 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM3_base" args="0 0 0 0 0 0 PSM3_RCM PSM3_base 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_PSM3" args="0 0 0 0 0 0 PSM3_base PSM3 20" />
+
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM_RCM" args="0 0 0 0 0 0 simworld ECM_RCM 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM_base" args="0 0 0 0 0 0 ECM_RCM ECM_base 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM" args="0 0 0 0 0 0 ECM_base ECM 20" />
+
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM_pitch" args="0 0 0 0 0 0 camera ecm_pitch_link_1 20" />
+<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM_insertion" args="0 0 0 0 0 0 ecm_pitch_link_1 ecm_insertion_link 20" />
+
+<!--
 <group ns="/dvrk/PSM1">
   <arg name="model" default="$(find dvrk_model)/model/PSM1.urdf.xacro" />
   <arg name="gui" default="true" />
@@ -75,10 +95,9 @@
   <node name="rviz" pkg="rviz" type="rviz"
      args="-d $(find dvrk_model)/rviz_config/ECM.rviz" />
 </group>
+-->
 
 <!-- This launches a static transform between the ECM and the camera frame in simulation -->
 <node pkg="tf" type="static_transform_publisher" name="ECM" args="0 0 0 3.14159 0 0 ecm_roll_link camera 20" />
 <node pkg="simulation" name="image_flipper" type="image_flipper.py" />
 </launch>
-
-
