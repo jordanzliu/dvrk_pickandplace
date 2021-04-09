@@ -3,11 +3,26 @@
     "arms":
     [
         {
+            "name": "SUJ",
+            "type": "SUJ",
+            "simulation": "KINEMATIC",
+            "kinematic": "suj-simulated.json",
+            "base-frame": {
+                "component": "ECM",
+                "interface": "Robot"
+            }
+        }
+        ,
+        {
             "name": "PSM1",
             "type": "PSM",
             "simulation": "KINEMATIC",
             "pid": "sawControllersPID-PSM.xml",
-            "kinematic": "psm-large-needle-driver.json"
+            "kinematic": "psm-large-needle-driver.json",
+            "base-frame": {
+                "component": "SUJ",
+                "interface": "PSM1"
+            }
         }
         ,
         {
@@ -15,7 +30,11 @@
             "type": "PSM",
             "simulation": "KINEMATIC",
             "pid": "sawControllersPID-PSM.xml",
-            "kinematic": "psm-large-needle-driver.json"
+            "kinematic": "psm-large-needle-driver.json",
+            "base-frame": {
+                "component": "SUJ",
+                "interface": "PSM2"
+            }
         }
         ,
         {
@@ -23,7 +42,11 @@
             "type": "PSM",
             "simulation": "KINEMATIC",
             "pid": "sawControllersPID-PSM.xml",
-            "kinematic": "psm-large-needle-driver.json"
+            "kinematic": "psm-large-needle-driver.json",
+            "base-frame": {
+                "component": "SUJ",
+                "interface": "PSM3"
+            }
         }
         ,
         {
@@ -31,7 +54,11 @@
             "type": "ECM",
             "simulation": "KINEMATIC",
             "pid": "sawControllersPID-ECM.xml",
-            "kinematic": "ecm-straight.json"
+            "kinematic": "ecm-straight.json",
+            "base-frame": {
+                "component": "SUJ",
+                "interface": "ECM"
+            }
         }
     ]
 }
