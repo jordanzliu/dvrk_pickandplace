@@ -38,6 +38,7 @@
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
 
+  <param name="/use_sim_time" value="true"/>
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
@@ -60,6 +61,7 @@
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
 
+  <param name="/use_sim_time" value="true"/>
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
@@ -77,12 +79,38 @@
      args="-d $(find dvrk_model)/rviz_config/PSM2.rviz" />
 </group>
 
+<!--
+<group ns="/dvrk/PSM2">
+  <arg name="model" default="$(find dvrk_model)/model/PSM3.urdf.xacro" />
+  <arg name="gui" default="true" />
+  <arg name="rate" default="200" />
+
+  <param name="/use_sim_time" value="true"/>
+  <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
+
+  <rosparam param="source_list" subst_value="True">
+          [/dvrk/PSM2/state_joint_current,
+           /dvrk/PSM2/state_jaw_current,
+           /dvrk/PSM2/state_gripper_current]
+      </rosparam>
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <remap from="/joint_state_publisher/enable_slider"
+            to="/dvrk_psm/joint_state_publisher/enable_slider"/>
+  </node>
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+  <node name="rviz" pkg="rviz" type="rviz"
+     args="-d $(find dvrk_model)/rviz_config/PSM2.rviz" />
+</group>
+-->
+
 
 <group ns="/dvrk/ECM">
   <arg name="model" default="$(find dvrk_model)/model/ECM.urdf.xacro" />
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
 
+  <param name="/use_sim_time" value="true"/>
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
