@@ -48,7 +48,6 @@ class PickAndPlaceStateMachine:
         else:
             return PickAndPlaceState.APPROACH_OBJECT
 
-
     def _approach_object(self):
         self._set_arm_dest(self._obj_pos())
 

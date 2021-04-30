@@ -38,7 +38,6 @@
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
 
-  <param name="/use_sim_time" value="true"/>
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
@@ -61,7 +60,6 @@
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
 
-  <param name="/use_sim_time" value="true"/>
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
@@ -85,7 +83,6 @@
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
 
-  <param name="/use_sim_time" value="true"/>
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
@@ -110,7 +107,6 @@
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
 
-  <param name="/use_sim_time" value="true"/>
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
