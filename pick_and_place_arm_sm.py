@@ -32,6 +32,7 @@ class PickAndPlaceStateMachine:
     def jaw_fully_open(self):
         return True if self.psm.get_current_jaw_position() >= math.pi / 3 else False 
 
+
     def jaw_fully_closed(self):
         return True if self.psm.get_current_jaw_position() <= 0 else False
 
@@ -47,6 +48,7 @@ class PickAndPlaceStateMachine:
             return PickAndPlaceState.OPEN_JAW
         else:
             return PickAndPlaceState.APPROACH_OBJECT
+
 
     def _approach_object(self):
         self._set_arm_dest(self._obj_pos())

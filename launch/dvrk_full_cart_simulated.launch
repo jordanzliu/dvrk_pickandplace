@@ -78,7 +78,7 @@
 </group>
 
 <!--
-<group ns="/dvrk/PSM2">
+<group ns="/dvrk/PSM3">
   <arg name="model" default="$(find dvrk_model)/model/PSM3.urdf.xacro" />
   <arg name="gui" default="true" />
   <arg name="rate" default="200" />
@@ -86,9 +86,9 @@
   <param name="robot_description" command="rosrun xacro xacro $(arg model)"/>
 
   <rosparam param="source_list" subst_value="True">
-          [/dvrk/PSM2/state_joint_current,
-           /dvrk/PSM2/state_jaw_current,
-           /dvrk/PSM2/state_gripper_current]
+          [/dvrk/PSM3/state_joint_current,
+           /dvrk/PSM3/state_jaw_current,
+           /dvrk/PSM3/state_gripper_current]
       </rosparam>
 
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
