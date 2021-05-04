@@ -51,8 +51,8 @@
             to="/dvrk_psm/joint_state_publisher/enable_slider"/>
   </node>
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
-  <node name="rviz" pkg="rviz" type="rviz"
-     args="-d $(find dvrk_model)/rviz_config/PSM1.rviz" />
+  <!-- <node name="rviz" pkg="rviz" type="rviz"
+     args="-d $(find dvrk_model)/rviz_config/PSM1.rviz" /> -->
 </group>
 
 <group ns="/dvrk/PSM2">
@@ -73,8 +73,8 @@
             to="/dvrk_psm/joint_state_publisher/enable_slider"/>
   </node>
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
-  <node name="rviz" pkg="rviz" type="rviz"
-     args="-d $(find dvrk_model)/rviz_config/PSM2.rviz" />
+  <!-- <node name="rviz" pkg="rviz" type="rviz"
+     args="-d $(find dvrk_model)/rviz_config/PSM2.rviz" /> -->
 </group>
 
 <!--
