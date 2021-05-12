@@ -182,6 +182,7 @@ class PickAndPlaceStateMachine:
                               key=lambda obj : (self.world_to_psm_tf * obj.pos \
                                 - self.psm.get_current_position().p).Norm())
 
+        # approching position to pick up
         self.approach_vec = approach_vec
         # if this is False, we don't check if we successfully picked up the object
         # and go straight to the done state

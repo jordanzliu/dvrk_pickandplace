@@ -28,11 +28,6 @@
 <node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM_base" args="0 0 0 0 0 0 ECM_RCM ECM_base 20" />
 <node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM" args="0 0 0 0 0 0 ECM_base ECM 20" />
 
-<!--
-<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM_pitch" args="0 0 0 0 0 0 camera ecm_pitch_link_1 20" />
-<node pkg="tf" type="static_transform_publisher" name="sim_2_ros_ECM_insertion" args="0 0 0 0 0 0 ecm_pitch_link_1 ecm_insertion_link 20" />
--->
-
 <group ns="/dvrk/PSM1">
   <arg name="model" default="$(find dvrk_model)/model/PSM1.urdf.xacro" />
   <arg name="gui" default="true" />
@@ -77,7 +72,7 @@
      args="-d $(find dvrk_model)/rviz_config/PSM2.rviz" /> -->
 </group>
 
-<!--
+
 <group ns="/dvrk/PSM3">
   <arg name="model" default="$(find dvrk_model)/model/PSM3.urdf.xacro" />
   <arg name="gui" default="true" />
@@ -96,10 +91,10 @@
             to="/dvrk_psm/joint_state_publisher/enable_slider"/>
   </node>
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
-  <node name="rviz" pkg="rviz" type="rviz"
-     args="-d $(find dvrk_model)/rviz_config/PSM2.rviz" />
+  <!-- <node name="rviz" pkg="rviz" type="rviz"
+     args="-d $(find dvrk_model)/rviz_config/PSM3.rviz" /> -->
 </group>
--->
+
 
 
 <group ns="/dvrk/ECM">
@@ -120,8 +115,8 @@
             to="/dvrk_ecm/joint_state_publisher/enable_slider"/>
   </node>
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
-  <node name="rviz" pkg="rviz" type="rviz"
-     args="-d $(find dvrk_model)/rviz_config/ECM.rviz" />
+  <!-- <node name="rviz" pkg="rviz" type="rviz"
+     args="-d $(find dvrk_model)/rviz_config/ECM.rviz" /> -->
 </group>
 
 
