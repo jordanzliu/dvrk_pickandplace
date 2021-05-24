@@ -51,8 +51,6 @@ class PickAndPlaceStateMachine:
 
 
     def _approach_object(self):
-        if self.log_verbose:
-            loginfo("Picking Object {}".format(self.object.pos))
         self._set_arm_dest(self._obj_pos())
 
 
@@ -143,12 +141,16 @@ class PickAndPlaceStateMachine:
         # finished executing as determined by the parent state machine
         return PickAndPlaceState.HOME 
 
+    # get opbject pos relative to psm
     def _obj_pos(self):
-        return self.world_to_psm_tf * self.object.pos
+        object_pos = self.world_to_psm_tf * self.object.pos
+        if self.log_verbose:
+            loginfo("Object pos: {}, PSM pos: {}, Object rel PSM pos: {}".format(self.object.pos, self.world_to_psm_tf, object_pos))
+        return object_pos
 
     
     def _approach_vec(self):
-        return self.world_to_psm_tf.M * self.approach_vec
+        return 0#self.world_to_psm_tf.M * self.approach_vec
 
 
     def _obj_dest(self):
