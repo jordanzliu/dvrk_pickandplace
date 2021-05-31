@@ -189,7 +189,7 @@ class PickAndPlaceStateMachine:
         # if this is False, we don't check if we successfully picked up the object
         # and go straight to the done state
         self.closed_loop = closed_loop
-        self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.03)
+        self.obj_dest = world.bowl.pos + PyKDL.Vector(0, 0, 0.05)  # extra height over the bowl
         self.state_functions = {
             PickAndPlaceState.OPEN_JAW : self._open_jaw,
             PickAndPlaceState.APPROACH_OBJECT : self._approach_object,
