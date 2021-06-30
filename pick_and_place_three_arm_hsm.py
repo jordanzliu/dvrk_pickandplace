@@ -41,6 +41,7 @@ class PickAndPlaceThreeArmHSM:
         # psm2_objects.extend([objects[0], objects[3]])   # green 2
         # psm3_objects.extend([objects[2], objects[5]])   # blue 1
 
+        # red = 0, green = 2, blue = 1
         for object in self.world.objects:
             if object.color == 0:
                 psm1_objects.append(object)
