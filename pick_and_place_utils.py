@@ -11,7 +11,6 @@ import image_geometry
 from feature_processor import feature_processor, FeatureType
 from tf_conversions import posemath
 from math import pi
-import dvrk
 from collections import OrderedDict 
 
 '''
