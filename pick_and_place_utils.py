@@ -22,9 +22,9 @@ PSM_J1_TO_BASE_LINK_ROT = PyKDL.Rotation.RPY(pi / 2, - pi, 0)
 PSM_J1_TO_BASE_LINK_TF = PyKDL.Frame(PSM_J1_TO_BASE_LINK_ROT, PyKDL.Vector())
 
 # TODO: make this less hardcoded
-RED_BALL_FEAT_PATH = './red_ball.csv'
-BLUE_BALL_FEAT_PATH = './blue_ball.csv'
-GREEN_BALL_FEAT_PATH = './green_ball.csv'
+RED_BALL_FEAT_PATH = 'objects/red_ball.csv'
+BLUE_BALL_FEAT_PATH = 'objects/blue_ball.csv'
+GREEN_BALL_FEAT_PATH = 'objects/green_ball.csv'
 
 FEAT_PATHS = [RED_BALL_FEAT_PATH, BLUE_BALL_FEAT_PATH, GREEN_BALL_FEAT_PATH]
 
