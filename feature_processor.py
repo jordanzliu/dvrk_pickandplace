@@ -15,6 +15,7 @@ import csv
 import math
 from skimage import transform as sktf
 
+
 class FeatureType(Enum):
     BALL = 0
     BOWL = 1
@@ -26,16 +27,17 @@ def contour_centre(contour):
     y = int(M['m01'] / M['m00'])
     return (x, y)
 
+
 class ImageFeature:
     def __init__(self, type, pos, color, contour):
         self.type = type
         self.pos = pos
         self.contour = contour
         self.color = color
-     
+
     def __str__(self):
         return "ImageFeature type={}, pos={}, color={}, area={}".format(
-                self.type, self.pos, self.color, cv2.contourArea(self.contour))
+            self.type, self.pos, self.color, cv2.contourArea(self.contour))
 
     def __repr__(self):
         return self.__str__()
@@ -53,30 +55,28 @@ class feature_processor:
 
         self.min_contour_area = 10
 
-
         # Declare a cv to ros bridge
         self.bridge = CvBridge()
 
     def StoreHSVRanges(self, feature_files):
-        hsv_ranges = np.empty((1,  2, 3))
+        hsv_ranges = np.empty((1, 2, 3))
         for feature in feature_files:
             feature_range = np.genfromtxt(feature, delimiter=',')
-            range_reshaped = np.reshape(feature_range,  (1, 2, 3))
+            range_reshaped = np.reshape(feature_range, (1, 2, 3))
             hsv_ranges = np.append(hsv_ranges, range_reshaped, axis=0)
 
         # Delete empty row
-        hsv_ranges = np.delete(hsv_ranges,  0, axis=0)
+        hsv_ranges = np.delete(hsv_ranges, 0, axis=0)
 
         self.hsv_ranges = hsv_ranges
         self.n_features = hsv_ranges.shape[0]
-
 
     def GetShapeSize(self, points):
         # Store area
         if (points.shape[0] == 0):
             rospy.logerr("No feature points to find size of!")
             size = 0
-        if(points.shape[0] == 1):
+        if (points.shape[0] == 1):
             # Size is zero
             size = 0
         if (points.shape[0] == 2):
@@ -85,7 +85,7 @@ class feature_processor:
                 points[0, :] - points[1, :])
         else:
             size = cv2.contourArea(np.float32(points))
-        rospy.loginfo("Size: "+ str(size))
+        rospy.loginfo("Size: " + str(size))
         return size
 
     def PrepareImage(self, ros_image):
@@ -109,7 +109,6 @@ class feature_processor:
 
         return frame, hsv
 
-
     def FindContours(self, hsv, lower_range, upper_range):
         # Masks the input frame using the HSV upper and lower range
         mask = cv2.inRange(hsv, lower_range * self.hsv_adjustment,
@@ -121,7 +120,6 @@ class feature_processor:
         contours = imutils.grab_contours(contours)
 
         return contours
-
 
     def FindImageFeatures(self, ros_image):
         # Prepare image for processing
@@ -154,20 +152,20 @@ class feature_processor:
 
                 # TODO: more intelligent bowl classification logic besides picking
                 # the largest area contour and calling it the bowl
-                features.append(ImageFeature(type=FeatureType.BALL, pos=(cx, cy), color=f, 
+                features.append(ImageFeature(type=FeatureType.BALL, pos=(cx, cy), color=f,
                                              contour=c))
 
                 # Creates a circle at the centroid point
                 cv2.circle(frame, (cx, cy), 3, (0, 0, 0), -1)
 
-        bowl = max(features, key=lambda feat : cv2.contourArea(feat.contour))
+        bowl = max(features, key=lambda feat: cv2.contourArea(feat.contour))
         bowl.type = FeatureType.BOWL
         cv2.drawContours(frame, [bowl.contour], -1, (0, 255, 0), thickness=3)
 
         # remove features that are already in the bowl 
         center, radius = cv2.minEnclosingCircle(bowl.contour)
-        features = filter(lambda feat : np.linalg.norm(np.subtract(center, feat.pos)) >= radius, 
-                    features)
+        features = filter(lambda feat: np.linalg.norm(np.subtract(center, feat.pos)) >= radius,
+                          features)
 
         # spaghetti code
         features.append(bowl)

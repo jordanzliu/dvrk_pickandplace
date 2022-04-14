@@ -39,30 +39,27 @@ class PickAndPlaceHSM:
         result = dict()
 
         if psm1_objects:
-            result[0] = min(psm1_objects, 
+            result[0] = min(psm1_objects,
                             key=lambda obj: (self.psms[0].get_current_position().p \
-                                                - (self.world_to_psm_tfs[0] * obj.pos)).Norm())
+                                             - (self.world_to_psm_tfs[0] * obj.pos)).Norm())
 
         if psm2_objects:
-            result[1] = min(psm2_objects, 
+            result[1] = min(psm2_objects,
                             key=lambda obj: (self.psms[1].get_current_position().p \
-                                                - (self.world_to_psm_tfs[1] * obj.pos)).Norm())    
+                                             - (self.world_to_psm_tfs[1] * obj.pos)).Norm())
 
         return result
-
 
     def _preparing(self):
         for sm in self.psm_state_machines:
             if (not sm.is_done()) and sm.state == PickAndPlaceState.OPEN_JAW:
                 sm.run_once()
 
-
     def _preparing_next(self):
         if all([sm.jaw_fully_open() for sm in self.psm_state_machines]):
             return PickAndPlaceParentState.PICKING
         else:
             return PickAndPlaceParentState.PREPARING
-
 
     def _picking(self):
         for sm in self.psm_state_machines:
@@ -76,7 +73,7 @@ class PickAndPlaceHSM:
 
         # if a child state machine is done, reset it to APPROACH_OBJECT 
         # with an updated object
-        done_sm_idxs = filter(lambda sm_idx : self.psm_state_machines[sm_idx].is_done(), 
+        done_sm_idxs = filter(lambda sm_idx: self.psm_state_machines[sm_idx].is_done(),
                               range(len(self.psm_state_machines)))
         if self.log_verbose:
             loginfo("Done child sms: {}".format(done_sm_idxs))
@@ -89,16 +86,16 @@ class PickAndPlaceHSM:
 
                 if self.log_verbose:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
-                
+
                 self.psm_state_machines[sm_idx].object = closest_obj
                 self.psm_state_machines[sm_idx].state = PickAndPlaceState.APPROACH_OBJECT
 
         # if a child state machine is in the APPROACH_DEST state, we transition to the 
         # DROPPING state
 
-        dropping_sm_idxs = filter(lambda sm_idx : \
-            self.psm_state_machines[sm_idx].state == PickAndPlaceState.APPROACH_DEST, 
-            range(len(self.psm_state_machines)))
+        dropping_sm_idxs = filter(lambda sm_idx: \
+                                      self.psm_state_machines[sm_idx].state == PickAndPlaceState.APPROACH_DEST,
+                                  range(len(self.psm_state_machines)))
 
         if self.log_verbose:
             loginfo("Child sm states: {}".format([sm.state for sm in self.psm_state_machines]))
@@ -109,14 +106,13 @@ class PickAndPlaceHSM:
             for sm_idx, sm in enumerate(self.psm_state_machines):
                 if sm_idx != dropping_sm_idxs[0] and sm.state == PickAndPlaceState.APPROACH_DEST:
                     sm.halt()
-            
+
             if self.log_verbose:
                 loginfo("Entering DROPPING state!")
-                
+
             return PickAndPlaceParentState.DROPPING
 
         return PickAndPlaceParentState.PICKING
-
 
     def _dropping(self):
         if not self.dropping_sm.is_done():
@@ -125,7 +121,6 @@ class PickAndPlaceHSM:
         for sm in self.psm_state_machines:
             if sm != self.dropping_sm and sm.state != PickAndPlaceState.APPROACH_DEST:
                 sm.run_once()
-
 
     def _dropping_next(self):
         if self.dropping_sm.is_done():
@@ -139,7 +134,7 @@ class PickAndPlaceHSM:
                 closest_obj = psm_to_closest_object_map[sm_idx]
                 if self.log_verbose:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
-                
+
                 # if there's an object to pick up, move to the next one
                 self.psm_state_machines[sm_idx].object = closest_obj
                 self.psm_state_machines[sm_idx].state = PickAndPlaceState.APPROACH_OBJECT
@@ -151,7 +146,6 @@ class PickAndPlaceHSM:
             return PickAndPlaceParentState.PICKING
         else:
             return PickAndPlaceParentState.DROPPING
-
 
     def update_world(self, world):
         self.world = world
@@ -186,29 +180,28 @@ class PickAndPlaceHSM:
                 closest_obj = psm_to_closest_object_map[sm_idx]
                 if self.log_verbose:
                     loginfo("Assigning object {} to {}".format(closest_obj, self.psms[sm_idx].name()))
-                
+
                 self.psm_state_machines.append(
-                    PickAndPlaceStateMachine(psm, self.world, world_to_psm_tf, 
+                    PickAndPlaceStateMachine(psm, self.world, world_to_psm_tf,
                                              closest_obj, approach_vec, closed_loop=False)
                 )
 
         self.state = PickAndPlaceParentState.PREPARING
 
         self.state_functions = {
-            PickAndPlaceParentState.PREPARING : self._preparing,
-            PickAndPlaceParentState.PICKING : self._picking,
-            PickAndPlaceParentState.DROPPING : self._dropping
+            PickAndPlaceParentState.PREPARING: self._preparing,
+            PickAndPlaceParentState.PICKING: self._picking,
+            PickAndPlaceParentState.DROPPING: self._dropping
         }
 
         self.next_functions = {
-            PickAndPlaceParentState.PREPARING : self._preparing_next,
-            PickAndPlaceParentState.PICKING : self._picking_next,
-            PickAndPlaceParentState.DROPPING : self._dropping_next
+            PickAndPlaceParentState.PREPARING: self._preparing_next,
+            PickAndPlaceParentState.PICKING: self._picking_next,
+            PickAndPlaceParentState.DROPPING: self._dropping_next
         }
 
         self.dropping_sm = None
 
-    
     def run_once(self):
         if self.state == PickAndPlaceParentState.DONE:
             return
@@ -218,13 +211,9 @@ class PickAndPlaceHSM:
 
         self.state_functions[self.state]()
         self.state = self.next_functions[self.state]()
-        
 
     def __str__(self):
         return str(self.__dict__)
 
     def __repr__(self):
         return str(self.__dict__)
-
-
-        
