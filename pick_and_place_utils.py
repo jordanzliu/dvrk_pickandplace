@@ -8,7 +8,7 @@ import dvrk
 import PyKDL
 import tf
 import image_geometry
-from feature_processor import feature_processor, FeatureType
+from featureprocessor import FeatureProcessor, FeatureType
 from tf_conversions import posemath
 from math import pi
 import dvrk
@@ -55,9 +55,9 @@ def clamp_image_coords(pt, im_shape):
 def get_objects_and_img(left_image_msg, right_image_msg, stereo_cam_model, cam_to_world_tf):
     # this gets the position of the red ball thing in the camera frame
     # and the image with X's on the desired features
-    fp = feature_processor(FEAT_PATHS)
-    left_feats, left_frame = fp.FindImageFeatures(left_image_msg)
-    right_feats, right_frame = fp.FindImageFeatures(right_image_msg)
+    fp = FeatureProcessor(FEAT_PATHS)
+    left_feats, left_frame = fp.find_image_features(left_image_msg)
+    right_feats, right_frame = fp.find_image_features(right_image_msg)
 
     # discard features with image y > bowl y
     left_bowl = None

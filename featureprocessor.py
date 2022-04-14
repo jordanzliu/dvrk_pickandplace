@@ -1,22 +1,16 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
-import rospy
-import rospkg
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
-from auto_cam.msg import FeaturePoints
-from opencv_apps.msg import Point2D
-from enum import Enum
+import enum
+
 import cv2
-import numpy as np
 import imutils
-import sys
-import csv
-import math
-from skimage import transform as sktf
+import numpy as np
+import rospy
+from cv_bridge import CvBridge, CvBridgeError
 
 
-class FeatureType(Enum):
+class FeatureType(enum.Enum):
     BALL = 0
     BOWL = 1
 
@@ -43,12 +37,16 @@ class ImageFeature:
         return self.__str__()
 
 
-class feature_processor:
+class FeatureProcessor:
 
     def __init__(self, feature_files, log_verbose=False):
+        self.n_features = None
+        self.hsv_ranges = None
         self.log_verbose = False
+
         # Set hsv lower and upper limits
-        self.StoreHSVRanges(feature_files)
+        self.store_hsv_ranges(feature_files)
+
         # Declare adjustment values to match cv2 hsv value storage
         self.hsv_adjustment = np.array(
             [1.0 / 2.0, 255.0 / 100.0, 255.0 / 100.0])
@@ -58,7 +56,7 @@ class feature_processor:
         # Declare a cv to ros bridge
         self.bridge = CvBridge()
 
-    def StoreHSVRanges(self, feature_files):
+    def store_hsv_ranges(self, feature_files):
         hsv_ranges = np.empty((1, 2, 3))
         for feature in feature_files:
             feature_range = np.genfromtxt(feature, delimiter=',')
@@ -71,15 +69,16 @@ class feature_processor:
         self.hsv_ranges = hsv_ranges
         self.n_features = hsv_ranges.shape[0]
 
-    def GetShapeSize(self, points):
+    @staticmethod
+    def get_shape_size(points):
         # Store area
-        if (points.shape[0] == 0):
+        if points.shape[0] == 0:
             rospy.logerr("No feature points to find size of!")
             size = 0
-        if (points.shape[0] == 1):
+        if points.shape[0] == 1:
             # Size is zero
             size = 0
-        if (points.shape[0] == 2):
+        if points.shape[0] == 2:
             # Store length line instead of area
             size = np.linalg.norm(
                 points[0, :] - points[1, :])
@@ -88,7 +87,7 @@ class feature_processor:
         rospy.loginfo("Size: " + str(size))
         return size
 
-    def PrepareImage(self, ros_image):
+    def prepare_image(self, ros_image):
         # try catch block to capture exception handling
         try:
             # Convert ROS message to OpenCV image
@@ -109,7 +108,7 @@ class feature_processor:
 
         return frame, hsv
 
-    def FindContours(self, hsv, lower_range, upper_range):
+    def find_contours(self, hsv, lower_range, upper_range):
         # Masks the input frame using the HSV upper and lower range
         mask = cv2.inRange(hsv, lower_range * self.hsv_adjustment,
                            upper_range * self.hsv_adjustment)
@@ -121,9 +120,9 @@ class feature_processor:
 
         return contours
 
-    def FindImageFeatures(self, ros_image):
+    def find_image_features(self, ros_image):
         # Prepare image for processing
-        frame, hsv = self.PrepareImage(ros_image)
+        frame, hsv = self.prepare_image(ros_image)
 
         features = []
         for f in range(self.n_features):
@@ -131,13 +130,13 @@ class feature_processor:
             lower_range = self.hsv_ranges[f, 0, :]
             upper_range = self.hsv_ranges[f, 1, :]
 
-            contours = self.FindContours(hsv, lower_range, upper_range)
+            contours = self.find_contours(hsv, lower_range, upper_range)
 
             # Iterate through all contours
             for c in contours:
 
                 # Skip contours with areas that are too small
-                if (cv2.contourArea(c) < self.min_contour_area):
+                if cv2.contourArea(c) < self.min_contour_area:
                     continue
 
                 # Draw the contour lines
