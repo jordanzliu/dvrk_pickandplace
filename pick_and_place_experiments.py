@@ -1,19 +1,5 @@
-# ---
-# jupyter:
-#   jupytext:
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.4.2
-#   kernelspec:
-#     display_name: Python 2
-#     language: python
-#     name: python2
-# ---
-
-import jupyros as jr
 import rospy
+import dvrk
 import numpy as np
 from sensor_msgs import msg
 import cv2
@@ -22,9 +8,8 @@ from copy import deepcopy
 import ipywidgets as widgets
 from IPython.display import clear_output, Image, display
 import PIL.Image
-from cStringIO import StringIO
+from io import StringIO
 import matplotlib.pyplot as plt
-import dvrk
 import PyKDL
 import tf
 import time
@@ -66,11 +51,11 @@ def right_camera_info_callback(camera_info_msg):
     global right_camera_info
     right_camera_info = camera_info_msg
 
-
-jr.subscribe('/stereo/left/image_flipped', msg.Image, left_image_callback)
-jr.subscribe('/stereo/left/camera_info', msg.CameraInfo, left_camera_info_callback)
-jr.subscribe('/stereo/right/image_flipped', msg.Image, right_image_callback)
-jr.subscribe('/stereo/right/camera_info', msg.CameraInfo, right_camera_info_callback)
+# TODO change to rospy subscribe with dvrk wrapper
+rospy.Subscriber('/stereo/left/image_flipped', msg.Image, left_image_callback)
+rospy.Subscriber('/stereo/left/camera_info', msg.CameraInfo, left_camera_info_callback)
+rospy.Subscriber('/stereo/right/image_flipped', msg.Image, right_image_callback)
+rospy.Subscriber('/stereo/right/camera_info', msg.CameraInfo, right_camera_info_callback)
 
 while left_image is None:
     time.sleep(0.5)
