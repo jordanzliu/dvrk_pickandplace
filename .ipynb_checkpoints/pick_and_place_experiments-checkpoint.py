@@ -170,10 +170,10 @@ plt.imshow(disparity_map)
 plt.colorbar()
 
 # +
-from feature_processor import feature_processor
+from featureprocessor import FeatureProcessor
 from pick_and_place_utils import FEAT_PATHS, CV_TO_CAM_FRAME_ROT
-fp = feature_processor(FEAT_PATHS)
-feats, frame = fp.FindImageFeatures(left_image_msg)
+fp = FeatureProcessor(FEAT_PATHS)
+feats, frame = fp.find_image_features(left_image_msg)
 bowl = max(feats, key=lambda feat : cv2.contourArea(feat.contour))
 bowl_pts_cam = []
 print(bowl.contour)

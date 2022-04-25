@@ -1,21 +1,16 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
-import rospy
-import rospkg
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
-from auto_cam.msg import FeaturePoints
-from opencv_apps.msg import Point2D
-from enum import Enum
+import enum
+
 import cv2
-import numpy as np
 import imutils
-import sys
-import csv
-import math
-from skimage import transform as sktf
+import numpy as np
+import rospy
+from cv_bridge import CvBridge, CvBridgeError
 
-class FeatureType(Enum):
+
+class FeatureType(enum.Enum):
     BALL = 0
     BOWL = 1
 
@@ -26,69 +21,73 @@ def contour_centre(contour):
     y = int(M['m01'] / M['m00'])
     return (x, y)
 
+
 class ImageFeature:
     def __init__(self, type, pos, color, contour):
         self.type = type
         self.pos = pos
         self.contour = contour
         self.color = color
-     
+
     def __str__(self):
         return "ImageFeature type={}, pos={}, color={}, area={}".format(
-                self.type, self.pos, self.color, cv2.contourArea(self.contour))
+            self.type, self.pos, self.color, cv2.contourArea(self.contour))
 
     def __repr__(self):
         return self.__str__()
 
 
-class feature_processor:
+class FeatureProcessor:
 
     def __init__(self, feature_files, log_verbose=False):
+        self.n_features = None
+        self.hsv_ranges = None
         self.log_verbose = False
+
         # Set hsv lower and upper limits
-        self.StoreHSVRanges(feature_files)
+        self.store_hsv_ranges(feature_files)
+
         # Declare adjustment values to match cv2 hsv value storage
         self.hsv_adjustment = np.array(
             [1.0 / 2.0, 255.0 / 100.0, 255.0 / 100.0])
 
         self.min_contour_area = 10
 
-
         # Declare a cv to ros bridge
         self.bridge = CvBridge()
 
-    def StoreHSVRanges(self, feature_files):
-        hsv_ranges = np.empty((1,  2, 3))
+    def store_hsv_ranges(self, feature_files):
+        hsv_ranges = np.empty((1, 2, 3))
         for feature in feature_files:
             feature_range = np.genfromtxt(feature, delimiter=',')
-            range_reshaped = np.reshape(feature_range,  (1, 2, 3))
+            range_reshaped = np.reshape(feature_range, (1, 2, 3))
             hsv_ranges = np.append(hsv_ranges, range_reshaped, axis=0)
 
         # Delete empty row
-        hsv_ranges = np.delete(hsv_ranges,  0, axis=0)
+        hsv_ranges = np.delete(hsv_ranges, 0, axis=0)
 
         self.hsv_ranges = hsv_ranges
         self.n_features = hsv_ranges.shape[0]
 
-
-    def GetShapeSize(self, points):
+    @staticmethod
+    def get_shape_size(points):
         # Store area
-        if (points.shape[0] == 0):
+        if points.shape[0] == 0:
             rospy.logerr("No feature points to find size of!")
             size = 0
-        if(points.shape[0] == 1):
+        if points.shape[0] == 1:
             # Size is zero
             size = 0
-        if (points.shape[0] == 2):
+        if points.shape[0] == 2:
             # Store length line instead of area
             size = np.linalg.norm(
                 points[0, :] - points[1, :])
         else:
             size = cv2.contourArea(np.float32(points))
-        rospy.loginfo("Size: "+ str(size))
+        rospy.loginfo("Size: " + str(size))
         return size
 
-    def PrepareImage(self, ros_image):
+    def prepare_image(self, ros_image):
         # try catch block to capture exception handling
         try:
             # Convert ROS message to OpenCV image
@@ -109,8 +108,7 @@ class feature_processor:
 
         return frame, hsv
 
-
-    def FindContours(self, hsv, lower_range, upper_range):
+    def find_contours(self, hsv, lower_range, upper_range):
         # Masks the input frame using the HSV upper and lower range
         mask = cv2.inRange(hsv, lower_range * self.hsv_adjustment,
                            upper_range * self.hsv_adjustment)
@@ -122,10 +120,9 @@ class feature_processor:
 
         return contours
 
-
-    def FindImageFeatures(self, ros_image):
+    def find_image_features(self, ros_image):
         # Prepare image for processing
-        frame, hsv = self.PrepareImage(ros_image)
+        frame, hsv = self.prepare_image(ros_image)
 
         features = []
         for f in range(self.n_features):
@@ -133,13 +130,13 @@ class feature_processor:
             lower_range = self.hsv_ranges[f, 0, :]
             upper_range = self.hsv_ranges[f, 1, :]
 
-            contours = self.FindContours(hsv, lower_range, upper_range)
+            contours = self.find_contours(hsv, lower_range, upper_range)
 
             # Iterate through all contours
             for c in contours:
 
                 # Skip contours with areas that are too small
-                if (cv2.contourArea(c) < self.min_contour_area):
+                if cv2.contourArea(c) < self.min_contour_area:
                     continue
 
                 # Draw the contour lines
@@ -154,20 +151,20 @@ class feature_processor:
 
                 # TODO: more intelligent bowl classification logic besides picking
                 # the largest area contour and calling it the bowl
-                features.append(ImageFeature(type=FeatureType.BALL, pos=(cx, cy), color=f, 
+                features.append(ImageFeature(type=FeatureType.BALL, pos=(cx, cy), color=f,
                                              contour=c))
 
                 # Creates a circle at the centroid point
                 cv2.circle(frame, (cx, cy), 3, (0, 0, 0), -1)
 
-        bowl = max(features, key=lambda feat : cv2.contourArea(feat.contour))
+        bowl = max(features, key=lambda feat: cv2.contourArea(feat.contour))
         bowl.type = FeatureType.BOWL
         cv2.drawContours(frame, [bowl.contour], -1, (0, 255, 0), thickness=3)
 
         # remove features that are already in the bowl 
         center, radius = cv2.minEnclosingCircle(bowl.contour)
-        features = filter(lambda feat : np.linalg.norm(np.subtract(center, feat.pos)) >= radius, 
-                    features)
+        features = filter(lambda feat: np.linalg.norm(np.subtract(center, feat.pos)) >= radius,
+                          features)
 
         # spaghetti code
         features.append(bowl)
